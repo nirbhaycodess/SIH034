@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "PackSure AI",
+    "slug": "packsure-ai",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "com.packsure.ai",
+      "permissions": ["CAMERA", "READ_MEDIA_IMAGES"]
+    },
+    "ios": {
+      "bundleIdentifier": "com.packsure.ai",
+      "infoPlist": {
+        "NSCameraUsageDescription": "PackSure uses your camera to scan package declarations.",
+        "NSPhotoLibraryUsageDescription": "PackSure uses selected package images for analysis."
+      }
+    },
+    "plugins": ["expo-image-picker"]
+  }
+}
