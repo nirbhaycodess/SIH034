@@ -1,118 +1,572 @@
 import { StatusBar } from 'expo-status-bar';
-import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Pressable,
   SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
   View,
+  Text,
+  StyleSheet,
+  Pressable,
+  Modal,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { analyzeImage, type Analysis } from './src/api';
+import { theme } from './src/theme';
+import { mockInspections } from './src/data';
+import type { Inspection, TabRoute } from './src/types';
 
-const API_URL = 'http://10.0.2.2:8000';
-const labels: Record<string, string> = {
-  product_name: 'Product name',
-  manufacturer: 'Manufacturer',
-  packer: 'Packer',
-  importer: 'Importer',
-  net_quantity: 'Net quantity',
-  mrp: 'MRP',
-  manufacturing_date: 'Manufacturing date',
-  consumer_care: 'Consumer care',
-  country_of_origin: 'Country of origin',
-};
+// Screens
+import { DashboardScreen } from './src/screens/DashboardScreen';
+import { NewInspectionScreen } from './src/screens/NewInspectionScreen';
+import { InspectionResultScreen } from './src/screens/InspectionResultScreen';
+import { HistoryScreen } from './src/screens/HistoryScreen';
+import { ProductsScreen } from './src/screens/ProductsScreen';
+import { ReportsScreen } from './src/screens/ReportsScreen';
+import { AnalyticsScreen } from './src/screens/AnalyticsScreen';
+import { SettingsScreen } from './src/screens/SettingsScreen';
+import { LoginScreen } from './src/screens/LoginScreen';
+import { RegisterScreen } from './src/screens/RegisterScreen';
 
 export default function App() {
-  const [image, setImage] = useState<ImagePicker.ImagePickerAsset>();
-  const [analysis, setAnalysis] = useState<Analysis>();
-  const [loading, setLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [authView, setAuthView] = useState<'login' | 'register'>('login');
+  const [currentTab, setCurrentTab] = useState<TabRoute>('dashboard');
+  const [selectedInspection, setSelectedInspection] = useState<Inspection>(mockInspections[0]);
+  const [showMoreModal, setShowMoreModal] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
-  async function chooseImage(useCamera: boolean) {
-    const permission = useCamera
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission required', 'Allow image access in your device settings to scan a package.');
-      return;
-    }
-    const result = useCamera
-      ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.9 })
-      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9 });
-    if (!result.canceled) {
-      setImage(result.assets[0]);
-      setAnalysis(undefined);
-    }
-  }
+  const handleSelectInspection = (inspection: Inspection) => {
+    setSelectedInspection(inspection);
+    setCurrentTab('result');
+  };
 
-  async function runAnalysis() {
-    if (!image) return;
-    setLoading(true);
-    try {
-      setAnalysis(await analyzeImage(API_URL, image.uri, image.fileName ?? 'package.jpg'));
-    } catch (error) {
-      Alert.alert('Could not analyze image', error instanceof Error ? error.message : 'Please try again.');
-    } finally {
-      setLoading(false);
-    }
+  const handleInspectionComplete = (inspection: Inspection) => {
+    setSelectedInspection(inspection);
+    setCurrentTab('result');
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <StatusBar style="dark" />
+        {authView === 'login' ? (
+          <LoginScreen
+            onLoginSuccess={() => {
+              setIsAuthenticated(true);
+              setCurrentTab('dashboard');
+            }}
+            onNavigateToRegister={() => setAuthView('register')}
+          />
+        ) : (
+          <RegisterScreen
+            onRegisterSuccess={() => setAuthView('login')}
+            onNavigateToLogin={() => setAuthView('login')}
+          />
+        )}
+      </SafeAreaView>
+    );
   }
 
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.logo}><MaterialCommunityIcons name="shield-check" size={27} color="#fff" /></View>
-          <View><Text style={styles.title}>PackSure AI</Text><Text style={styles.subtitle}>Declaration review workspace</Text></View>
-        </View>
-        <Text style={styles.heading}>New inspection</Text>
-        <Text style={styles.copy}>Scan a clear front label to extract package declarations.</Text>
-        <View style={styles.card}>
-          {image ? <Image source={{ uri: image.uri }} style={styles.preview} /> : (
-            <View style={styles.empty}><MaterialCommunityIcons name="image-search-outline" size={44} color="#2563eb" /><Text style={styles.emptyText}>No package image selected</Text></View>
-          )}
-          <View style={styles.actions}>
-            <Pressable style={styles.secondary} onPress={() => chooseImage(true)}><MaterialCommunityIcons name="camera-outline" size={21} color="#1d4ed8" /><Text style={styles.secondaryText}>Camera</Text></Pressable>
-            <Pressable style={styles.secondary} onPress={() => chooseImage(false)}><MaterialCommunityIcons name="image-outline" size={21} color="#1d4ed8" /><Text style={styles.secondaryText}>Gallery</Text></Pressable>
+
+      {/* Top Ministry Header */}
+      <View style={styles.topHeader}>
+        <View style={styles.headerBrand}>
+          <View style={styles.logoBadge}>
+            <MaterialCommunityIcons name="shield-check" size={20} color="#fff" />
           </View>
-          <Pressable style={[styles.primary, !image && styles.disabled]} disabled={!image || loading} onPress={runAnalysis}>
-            {loading ? <ActivityIndicator color="#fff" /> : <><MaterialCommunityIcons name="brain" size={21} color="#fff" /><Text style={styles.primaryText}>Analyze declaration</Text></>}
+          <View>
+            <View style={styles.logoRow}>
+              <Text style={styles.brandTitle}>PACKSURE</Text>
+              <View style={styles.aiPill}>
+                <Text style={styles.aiText}>AI</Text>
+              </View>
+            </View>
+            <Text style={styles.brandSub}>Legal Metrology Division</Text>
+          </View>
+        </View>
+
+        <View style={styles.headerActions}>
+          {/* Notification Bell */}
+          <Pressable
+            style={styles.actionIconBtn}
+            onPress={() => setShowNotifications(true)}
+          >
+            <MaterialCommunityIcons name="bell-outline" size={20} color={theme.colors.text} />
+            <View style={styles.notifDot} />
+          </Pressable>
+
+          {/* More menu */}
+          <Pressable
+            style={styles.actionIconBtn}
+            onPress={() => setShowMoreModal(true)}
+          >
+            <MaterialCommunityIcons name="dots-vertical" size={20} color={theme.colors.text} />
           </Pressable>
         </View>
-        {analysis && <View style={styles.card}><Text style={styles.resultTitle}>Extracted declarations</Text><Text style={styles.status}>OCR status: {analysis.ocr_status}</Text>{Object.entries(labels).map(([key, label]) => { const field = analysis.fields[key]; return <View style={styles.row} key={key}><Text style={styles.label}>{label}</Text><Text style={styles.value}>{field?.value ?? 'Not detected'}</Text><Text style={styles.confidence}>{Math.round((field?.confidence ?? 0) * 100)}%</Text></View>; })}</View>}
-      </ScrollView>
+      </View>
+
+      {/* Main Screen Body */}
+      <View style={styles.body}>
+        {currentTab === 'dashboard' && (
+          <DashboardScreen
+            onNavigate={(tab: TabRoute) => setCurrentTab(tab)}
+            onSelectInspection={handleSelectInspection}
+          />
+        )}
+
+        {currentTab === 'new_inspection' && (
+          <NewInspectionScreen
+            onInspectionComplete={handleInspectionComplete}
+          />
+        )}
+
+        {currentTab === 'result' && (
+          <InspectionResultScreen
+            inspection={selectedInspection}
+            onBack={() => setCurrentTab('dashboard')}
+          />
+        )}
+
+        {currentTab === 'history' && (
+          <HistoryScreen
+            onSelectInspection={handleSelectInspection}
+          />
+        )}
+
+        {currentTab === 'products' && (
+          <ProductsScreen
+            onInspectAgain={() => setCurrentTab('new_inspection')}
+          />
+        )}
+
+        {currentTab === 'reports' && <ReportsScreen />}
+        {currentTab === 'analytics' && <AnalyticsScreen />}
+        {currentTab === 'settings' && (
+          <SettingsScreen onSignOut={() => setIsAuthenticated(false)} />
+        )}
+      </View>
+
+      {/* Bottom Navigation Bar */}
+      <View style={styles.bottomNav}>
+        {/* Dashboard */}
+        <Pressable
+          style={styles.navItem}
+          onPress={() => setCurrentTab('dashboard')}
+        >
+          <MaterialCommunityIcons
+            name={currentTab === 'dashboard' ? 'view-dashboard' : 'view-dashboard-outline'}
+            size={22}
+            color={currentTab === 'dashboard' ? theme.colors.brand.primary : theme.colors.textMuted}
+          />
+          <Text
+            style={[
+              styles.navLabel,
+              currentTab === 'dashboard' && styles.navLabelActive,
+            ]}
+          >
+            Overview
+          </Text>
+        </Pressable>
+
+        {/* History */}
+        <Pressable
+          style={styles.navItem}
+          onPress={() => setCurrentTab('history')}
+        >
+          <MaterialCommunityIcons
+            name={currentTab === 'history' ? 'clipboard-list' : 'clipboard-list-outline'}
+            size={22}
+            color={currentTab === 'history' ? theme.colors.brand.primary : theme.colors.textMuted}
+          />
+          <Text
+            style={[
+              styles.navLabel,
+              currentTab === 'history' && styles.navLabelActive,
+            ]}
+          >
+            History
+          </Text>
+        </Pressable>
+
+        {/* Center Prominent Scan Button */}
+        <Pressable
+          style={styles.centerScanBtn}
+          onPress={() => setCurrentTab('new_inspection')}
+        >
+          <View style={styles.centerScanInner}>
+            <MaterialCommunityIcons name="camera-iris" size={28} color="#fff" />
+          </View>
+        </Pressable>
+
+        {/* Products */}
+        <Pressable
+          style={styles.navItem}
+          onPress={() => setCurrentTab('products')}
+        >
+          <MaterialCommunityIcons
+            name={currentTab === 'products' ? 'package-variant' : 'package-variant-closed'}
+            size={22}
+            color={currentTab === 'products' ? theme.colors.brand.primary : theme.colors.textMuted}
+          />
+          <Text
+            style={[
+              styles.navLabel,
+              currentTab === 'products' && styles.navLabelActive,
+            ]}
+          >
+            Products
+          </Text>
+        </Pressable>
+
+        {/* More / Settings */}
+        <Pressable
+          style={styles.navItem}
+          onPress={() => setShowMoreModal(true)}
+        >
+          <MaterialCommunityIcons
+            name={currentTab === 'settings' ? 'cog' : 'cog-outline'}
+            size={22}
+            color={
+              currentTab === 'settings' || currentTab === 'reports' || currentTab === 'analytics'
+                ? theme.colors.brand.primary
+                : theme.colors.textMuted
+            }
+          />
+          <Text
+            style={[
+              styles.navLabel,
+              (currentTab === 'settings' || currentTab === 'reports' || currentTab === 'analytics') &&
+                styles.navLabelActive,
+            ]}
+          >
+            More
+          </Text>
+        </Pressable>
+      </View>
+
+      {/* Notifications Drawer Modal */}
+      <Modal visible={showNotifications} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Inspection Alerts</Text>
+                <Text style={styles.modalSub}>Zone 4 compliance feed</Text>
+              </View>
+              <Pressable onPress={() => setShowNotifications(false)}>
+                <MaterialCommunityIcons name="close" size={20} color={theme.colors.textMuted} />
+              </Pressable>
+            </View>
+
+            <View style={styles.notifList}>
+              <View style={styles.notifItem}>
+                <View style={[styles.notifIcon, { backgroundColor: theme.colors.rose.light }]}>
+                  <MaterialCommunityIcons name="alert-decagram" size={18} color={theme.colors.rose.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.notifTitle}>Rule 6(1)(l) Flag on Shampoo Bottle</Text>
+                  <Text style={styles.notifTime}>FreshGlow Herbal • 18m ago</Text>
+                </View>
+              </View>
+
+              <View style={styles.notifItem}>
+                <View style={[styles.notifIcon, { backgroundColor: theme.colors.emerald.light }]}>
+                  <MaterialCommunityIcons name="check-circle-outline" size={18} color={theme.colors.emerald.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.notifTitle}>Batch Compliance Certificate Issued</Text>
+                  <Text style={styles.notifTime}>Nature Harvest Oats • 45m ago</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* More Navigation Menu Modal */}
+      <Modal visible={showMoreModal} animationType="fade" transparent>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowMoreModal(false)}>
+          <View style={styles.moreCard}>
+            <Text style={styles.moreTitle}>Workspace Navigation</Text>
+
+            <Pressable
+              style={styles.moreItem}
+              onPress={() => {
+                setCurrentTab('reports');
+                setShowMoreModal(false);
+              }}
+            >
+              <MaterialCommunityIcons name="file-document-outline" size={20} color={theme.colors.brand.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.moreItemText}>Compliance Reports</Text>
+                <Text style={styles.moreItemSub}>Official certificates & statutory logs</Text>
+              </View>
+            </Pressable>
+
+            <Pressable
+              style={styles.moreItem}
+              onPress={() => {
+                setCurrentTab('analytics');
+                setShowMoreModal(false);
+              }}
+            >
+              <MaterialCommunityIcons name="chart-box-outline" size={20} color={theme.colors.emerald.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.moreItemText}>Analytics & Intelligence</Text>
+                <Text style={styles.moreItemSub}>Category pass rates & violation trends</Text>
+              </View>
+            </Pressable>
+
+            <Pressable
+              style={styles.moreItem}
+              onPress={() => {
+                setCurrentTab('settings');
+                setShowMoreModal(false);
+              }}
+            >
+              <MaterialCommunityIcons name="tune" size={20} color={theme.colors.navy[900]} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.moreItemText}>Settings & Credentials</Text>
+                <Text style={styles.moreItemSub}>Officer profile & Metrology rulebook</Text>
+              </View>
+            </Pressable>
+
+            <Pressable
+              style={[styles.moreItem, { borderBottomWidth: 0 }]}
+              onPress={() => {
+                setShowMoreModal(false);
+                setIsAuthenticated(false);
+              }}
+            >
+              <MaterialCommunityIcons name="logout" size={20} color={theme.colors.rose.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.moreItemText, { color: theme.colors.rose.primary }]}>
+                  Sign Out / Switch Officer
+                </Text>
+                <Text style={styles.moreItemSub}>Return to Login / Register screens</Text>
+              </View>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f8fafc' },
-  container: { padding: 20, gap: 18 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  logo: { width: 48, height: 48, borderRadius: 14, backgroundColor: '#1d4ed8', alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 22, fontWeight: '800', color: '#0f172a' },
-  subtitle: { color: '#64748b', marginTop: 2 },
-  heading: { fontSize: 28, fontWeight: '800', color: '#0f172a' },
-  copy: { color: '#64748b', fontSize: 15 },
-  card: { backgroundColor: '#fff', borderRadius: 18, padding: 16, gap: 14, shadowColor: '#0f172a', shadowOpacity: 0.06, shadowRadius: 12, elevation: 2 },
-  empty: { height: 210, borderRadius: 12, borderWidth: 1, borderColor: '#bfdbfe', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#eff6ff' },
-  emptyText: { color: '#475569', fontWeight: '600' },
-  preview: { height: 250, width: '100%', borderRadius: 12, resizeMode: 'cover' },
-  actions: { flexDirection: 'row', gap: 10 },
-  secondary: { flex: 1, borderWidth: 1, borderColor: '#bfdbfe', borderRadius: 10, padding: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 7 },
-  secondaryText: { color: '#1d4ed8', fontWeight: '700' },
-  primary: { backgroundColor: '#1d4ed8', borderRadius: 10, minHeight: 50, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
-  disabled: { backgroundColor: '#94a3b8' },
-  primaryText: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  resultTitle: { fontSize: 19, fontWeight: '800', color: '#0f172a' },
-  status: { color: '#64748b', fontSize: 13 },
-  row: { borderTopWidth: 1, borderTopColor: '#e2e8f0', paddingVertical: 10, gap: 3 },
-  label: { color: '#64748b', fontSize: 12, fontWeight: '700' },
-  value: { color: '#0f172a', fontSize: 15, fontWeight: '600' },
-  confidence: { color: '#16a34a', fontSize: 12, fontWeight: '700' },
+  safe: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  topHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+    backgroundColor: '#fff',
+  },
+  headerBrand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  logoBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.navy[900],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  brandTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: theme.colors.text,
+    letterSpacing: -0.3,
+  },
+  aiPill: {
+    backgroundColor: theme.colors.brand.primary,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  aiText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  brandSub: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: theme.colors.textMuted,
+    letterSpacing: 0.2,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  actionIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  notifDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: theme.colors.rose.primary,
+    position: 'absolute',
+    top: 7,
+    right: 7,
+  },
+  body: {
+    flex: 1,
+    backgroundColor: theme.colors.bg,
+  },
+  bottomNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    height: 64,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    paddingBottom: 4,
+  },
+  navItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  navLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: theme.colors.textMuted,
+  },
+  navLabelActive: {
+    color: theme.colors.brand.primary,
+  },
+  centerScanBtn: {
+    top: -14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerScanInner: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: theme.colors.brand.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: theme.colors.brand.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 32,
+    gap: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: theme.colors.text,
+  },
+  modalSub: {
+    fontSize: 11,
+    color: theme.colors.textMuted,
+    marginTop: 2,
+  },
+  notifList: {
+    gap: 12,
+  },
+  notifItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.surfaceSubtle,
+  },
+  notifIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: theme.radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notifTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  notifTime: {
+    fontSize: 10,
+    color: theme.colors.textSubtle,
+    marginTop: 2,
+  },
+  moreCard: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 32,
+    gap: 8,
+  },
+  moreTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: theme.colors.textMuted,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  moreItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.surfaceSubtle,
+  },
+  moreItemText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: theme.colors.text,
+  },
+  moreItemSub: {
+    fontSize: 11,
+    color: theme.colors.textMuted,
+    marginTop: 2,
+  },
 });

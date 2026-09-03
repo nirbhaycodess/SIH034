@@ -1,0 +1,40 @@
+from __future__ import annotations
+
+from pymongo import MongoClient
+from pymongo.database import Database
+
+from ..core.config import settings
+
+_client: MongoClient | None = None
+
+
+def connect_to_mongo() -> None:
+    """Create the shared MongoDB client. Called once at startup."""
+    global _client
+    _client = MongoClient(
+        settings.mongodb_uri,
+        serverSelectionTimeoutMS=5000,
+        connectTimeoutMS=5000,
+        socketTimeoutMS=30000,
+    )
+    # Ping to verify connectivity
+    _client.admin.command("ping")
+
+
+def close_mongo_connection() -> None:
+    """Close the MongoDB client. Called at shutdown."""
+    global _client
+    if _client is not None:
+        _client.close()
+        _client = None
+
+
+def get_client() -> MongoClient:
+    if _client is None:
+        raise RuntimeError("MongoDB client is not initialized. Call connect_to_mongo() first.")
+    return _client
+
+
+def get_database() -> Database:
+    """Return the shared database instance (no new connection per request)."""
+    return get_client()[settings.mongodb_database]

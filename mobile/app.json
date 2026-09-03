@@ -7,7 +7,10 @@
     "userInterfaceStyle": "light",
     "android": {
       "package": "com.packsure.ai",
-      "permissions": ["CAMERA", "READ_MEDIA_IMAGES"]
+      "permissions": [
+        "CAMERA",
+        "READ_MEDIA_IMAGES"
+      ]
     },
     "ios": {
       "bundleIdentifier": "com.packsure.ai",
@@ -16,6 +19,9 @@
         "NSPhotoLibraryUsageDescription": "PackSure uses selected package images for analysis."
       }
     },
-    "plugins": ["expo-image-picker"]
+    "plugins": [
+      "expo-image-picker",
+      "expo-asset"
+    ]
   }
 }

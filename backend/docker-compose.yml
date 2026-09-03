@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: packsure_mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: packsure_ai
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: packsure_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      MONGODB_URI: mongodb://mongodb:27017
+      MONGODB_DATABASE: packsure_ai
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change_in_production}
+      AI_PROVIDER: ${AI_PROVIDER:-mock}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:5174,http://localhost:5175}
+      ENVIRONMENT: production
+    depends_on:
+      - mongodb
+    volumes:
+      - uploads_data:/app/uploads
+      - reports_data:/app/reports
+
+volumes:
+  mongo_data:
+  uploads_data:
+  reports_data:

@@ -1,48 +1,123 @@
-# PackSure AI Backend
+# PackSure AI — Backend
 
-FastAPI REST API for PackSure AI. Image analysis uses OpenCV preprocessing and PaddleOCR, with declaration extraction isolated behind an injectable OCR provider.
+FastAPI + MongoDB backend for the PackSure AI compliance checking system.
+**Smart India Hackathon 2026 | Problem Statement SIH26034**
 
-The extraction step is deterministic label parsing; no LLM is used for legal or compliance decisions. Each field includes the OCR confidence (0 to 1), and missing fields are returned with a null value and zero confidence.
+## Quick Start
 
-## Run locally
+### Prerequisites
+- Python 3.12+
+- MongoDB (local or Atlas)
+- `c:\Users\Nirbhay\Documents\SIH034\backend\.venv\` (already created)
 
+### 1. Set up environment
 ```powershell
-cd backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+# Copy and fill in .env
+copy .env.example .env
+# Edit .env: set MONGODB_URI, JWT_SECRET_KEY, etc.
 ```
 
-Use Python 3.10-3.12 for the PaddleOCR/PaddlePaddle runtime. The selected OCR provider can be replaced by implementing `OCRProvider` and passing it to `ImageAnalysisService`.
+### 2. Install dependencies
+```powershell
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
 
-Open the API documentation at `http://localhost:8000/docs`.
+### 3. Seed database (optional demo data)
+```powershell
+.venv\Scripts\python.exe -m app.database.seed
+```
 
-## Frontend configuration
+### 4. Run the server
+```powershell
+.venv\Scripts\uvicorn.exe app.main:app --reload --port 8000
+```
 
-Create a `.env` file at the frontend project root:
+API docs: http://localhost:8000/docs  
+Health check: http://localhost:8000/api/v1/health
 
-```env
+### 5. Run tests
+```powershell
+.venv\Scripts\python.exe -m pytest tests/ -v
+```
+
+## Frontend Integration
+
+Add to `c:\Users\Nirbhay\Documents\SIH034\.env.local`:
+```
 VITE_API_BASE_URL=http://localhost:8000/api/v1
 ```
 
-The frontend falls back to local mock data if this value is omitted or the backend is unavailable.
+The frontend `api.ts` automatically uses the real backend when `VITE_API_BASE_URL` is set,
+with full mock fallback when it's not.
 
-## Mobile app
+## Demo Accounts (after seeding)
+| Email | Password | Role |
+|-------|----------|------|
+| `admin@packsure.gov.in` | `Admin@123` | ADMIN |
+| `priya.sharma@packsure.gov.in` | `Inspector@123` | INSPECTOR |
+| `rajesh.kumar@packsure.gov.in` | `Reviewer@123` | REVIEWER |
 
-The Expo React Native client is in `mobile/`. Start it with `npm install` and `npx expo start`. For an Android emulator it uses `http://10.0.2.2:8000`; for a physical phone, replace `API_URL` in `mobile/App.tsx` with the computer's LAN IP.
+## API Endpoints
 
-## Current endpoints
+All endpoints are prefixed with `/api/v1`.
 
-- `POST /api/v1/auth/login`
-- `GET /api/v1/inspections`, `GET /api/v1/inspections/{inspection_id}`, `POST /api/v1/inspections`
-- `POST /api/v1/inspections/{inspection_id}/analyze`
-- `POST /api/v1/uploads/images`
-- `POST /api/v1/uploads/images/analyze` (multipart field: `file`)
-- `POST /api/v1/compliance/evaluate` (structured declarations JSON)
-- `GET /api/v1/products`, `GET /api/v1/products/{product_id}`
-- `GET /api/v1/reports`, `POST /api/v1/reports`, `GET /api/v1/reports/{report_id}/download`
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Health check |
+| POST | `/auth/register` | Create account |
+| POST | `/auth/login` | Login → JWT tokens |
+| POST | `/auth/refresh` | Refresh access token |
+| GET | `/auth/me` | Current user |
+| GET | `/users` | List users (ADMIN) |
+| GET | `/products` | List products |
+| POST | `/products` | Create product |
+| GET | `/inspections` | List inspections |
+| POST | `/inspections` | Create inspection |
+| GET | `/inspections/{id}` | Get inspection detail |
+| POST | `/uploads/image` | Upload image |
+| POST | `/analysis/analyze` | Run AI pipeline |
+| POST | `/analysis/quick-analyze` | Quick analysis (no DB save) |
+| GET | `/reports` | List reports |
+| POST | `/reports/generate/{id}` | Generate PDF report |
+| GET | `/reports/download/{id}` | Download PDF |
+| GET | `/analytics/dashboard` | Dashboard KPIs |
+| GET | `/analytics/inspections/by-status` | Status breakdown |
+| GET | `/analytics/inspections/trend` | Daily trend |
+| GET | `/analytics/violations/by-severity` | Violations by severity |
+| GET | `/analytics/compliance/score-distribution` | Score histogram |
 
-## Compliance engine
+## AI Architecture
 
-The compliance engine is separate from OCR and uses deterministic, configurable validators. Its initial ruleset is explicitly marked `DEMO/SAMPLE` and only checks whether each extracted field is present. It is not a legal determination; replace `DEMO_RULES` with a verified Legal Metrology rules dataset before production use.
+```
+Image Upload
+    ↓
+OpenCV preprocessing (app/ai/image_processing.py)
+    ↓
+PaddleOCR (app/ai/ocr.py)
+    ↓
+AI Declaration Extraction (app/ai/mock_provider.py or gemini_provider.py)
+    ↓
+Deterministic Compliance Engine (app/compliance/engine.py)
+    ↓
+DEMO Rules Evaluation (app/compliance/rules/demo_rules.py)
+    ↓
+Results saved to MongoDB
+```
+
+> ⚠️ **IMPORTANT**: AI providers extract declarations only.  
+> All compliance decisions are made deterministically by `ComplianceEngine`.  
+> Never allow the AI to make the final legal compliance decision.
+
+## Tech Stack
+- **FastAPI** 0.115 + **Uvicorn** (ASGI)
+- **Pydantic** v2 + **pydantic-settings**
+- **PyMongo** 4.10 (no ORM)
+- **python-jose** (JWT) + **passlib/bcrypt** (passwords)
+- **PaddleOCR** (OCR) + **OpenCV** (preprocessing)
+- **ReportLab** (PDF reports)
+- **MongoDB** (Atlas compatible)
+
+## Disclaimer
+
+All compliance rules are clearly marked `[DEMO]` and are for demonstration purposes only.
+They are not a complete or authoritative interpretation of the Legal Metrology (Packaged Commodities) Rules, 2011.

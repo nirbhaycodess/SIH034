@@ -1,62 +1,43 @@
-from datetime import datetime
-from typing import Literal
-from pydantic import BaseModel, Field
+"""Inspection schemas."""
+from __future__ import annotations
 
-InspectionStatus = Literal["COMPLIANT", "NEEDS REVIEW", "VIOLATION", "DRAFT"]
-CheckStatus = Literal["PASS", "WARNING", "FAIL", "REVIEW"]
+from typing import List, Optional
 
-
-class Declaration(BaseModel):
-    label: str
-    value: str
-    confidence: int = Field(ge=0, le=100)
+from pydantic import BaseModel
 
 
-class ComplianceCheck(BaseModel):
-    requirement: str
-    detected_value: str
-    status: CheckStatus
-    explanation: str
-
-
-class Violation(BaseModel):
-    id: str
-    title: str
-    severity: Literal["High", "Medium", "Low"]
-    description: str
-    rule: str
-
-
-class Inspection(BaseModel):
-    id: str
-    product: str
-    manufacturer: str
-    date: str
-    score: int = Field(ge=0, le=100)
-    status: InspectionStatus
-    inspector: str
-    category: str
-    declarations: list[Declaration] = []
-    checks: list[ComplianceCheck] = []
-    violations: list[Violation] = []
+ALLOWED_STATUSES = {"PROCESSING", "COMPLIANT", "NON_COMPLIANT", "NEEDS_REVIEW", "FAILED"}
 
 
 class InspectionCreate(BaseModel):
-    product: str = "Untitled package"
-    manufacturer: str = "Not provided"
-    category: str = "Uncategorised"
+    product_id: str
+    remarks: Optional[str] = None
 
 
-class AnalysisResponse(BaseModel):
-    inspection: Inspection
-    analyzed_at: datetime
-    is_mock: bool = True
-    message: str = "Mock compliance analysis completed. OCR and AI are not enabled."
+class InspectionUpdate(BaseModel):
+    remarks: Optional[str] = None
+    status: Optional[str] = None
 
 
-class UploadResponse(BaseModel):
-    filename: str
-    content_type: str | None
-    size_bytes: int
-    url: str
-    is_mock: bool = True
+def inspection_to_out(doc: dict, include_nested: bool = False) -> dict:
+    out = {
+        "id": str(doc["_id"]),
+        "inspection_number": doc.get("inspection_number", ""),
+        "product_id": str(doc.get("product_id", "")),
+        "inspector_id": str(doc.get("inspector_id", "")),
+        "status": doc.get("status", "NEEDS_REVIEW"),
+        "compliance_score": doc.get("compliance_score"),
+        "ai_confidence": doc.get("ai_confidence"),
+        "remarks": doc.get("remarks", ""),
+        "images": doc.get("images", []),
+        "created_at": doc.get("created_at"),
+        "updated_at": doc.get("updated_at"),
+    }
+    if include_nested:
+        out["product"] = doc.get("_product")
+        out["declarations"] = doc.get("_declarations", [])
+        out["compliance_checks"] = doc.get("_compliance_checks", [])
+        out["violations"] = doc.get("_violations", [])
+        out["evidence"] = doc.get("_evidence", [])
+        out["report"] = doc.get("_report")
+    return out
