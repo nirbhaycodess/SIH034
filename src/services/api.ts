@@ -9,7 +9,10 @@ import { mockProducts } from '../data/mockProducts';
 import type { Inspection, Product } from '../types';
 
 // ── Backend base URL (set in .env as VITE_API_BASE_URL) ────────────────────
-const API_BASE = import.meta.env.VITE_API_BASE_URL as string | undefined;
+const configuredApiBase = import.meta.env.VITE_API_BASE_URL as string | undefined;
+const API_BASE = configuredApiBase
+  ? `${configuredApiBase.replace(/\/$/, '')}${configuredApiBase.endsWith('/api/v1') ? '' : '/api/v1'}`
+  : undefined;
 
 // ── Token storage ─────────────────────────────────────────────────────────
 const TOKEN_KEY = 'packsure_access_token';

@@ -169,8 +169,9 @@ export function NewInspection() {
       }
     } catch (err) {
       console.error(err);
-      const res = await analyzePackage();
-      nav(`/inspection/${res.id}`);
+      setLoading(false);
+      const message = err instanceof Error ? err.message : 'The server analysis failed.';
+      warning('Analysis Failed', `${message} No mock result was created.`);
     }
   }
 
