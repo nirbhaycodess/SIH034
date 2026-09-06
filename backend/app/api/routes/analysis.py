@@ -1,6 +1,8 @@
 """Analysis routes — trigger AI pipeline and return compliance results."""
 from __future__ import annotations
 
+from uuid import uuid4
+
 from bson import ObjectId
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pymongo.database import Database
@@ -8,6 +10,7 @@ from pymongo.database import Database
 from ...core.config import settings
 from ...core.dependencies import get_current_user, get_db
 from ...services.ai_service import run_analysis_pipeline
+from ...services.cloudinary_service import upload_label_image
 from ...utils.files import secure_save_path, validate_image_file
 
 router = APIRouter(prefix="/analysis", tags=["Analysis"])
@@ -44,10 +47,17 @@ async def analyze_inspection(
 
         dest_path = secure_save_path(settings.upload_path, file.filename)
         dest_path.write_bytes(content)
+        try:
+            cloudinary_result = upload_label_image(dest_path, inspection_id)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Cloudinary upload failed: {exc}")
 
         db["inspections"].update_one(
             {"_id": ObjectId(inspection_id)},
-            {"$push": {"images": str(dest_path)},
+            {"$push": {
+                "images": cloudinary_result["url"],
+                "image_public_ids": cloudinary_result["public_id"],
+            },
              "$set": {"updated_at": datetime.now(timezone.utc)}},
         )
 
@@ -86,6 +96,10 @@ async def quick_analyze(
 
     dest_path = secure_save_path(settings.upload_path, file.filename)
     dest_path.write_bytes(content)
+    try:
+        cloudinary_result = upload_label_image(dest_path, f"quick_{uuid4().hex}")
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Cloudinary upload failed: {exc}")
 
     # OCR + AI + Compliance
     ocr_engine = get_ocr_engine()
@@ -99,7 +113,11 @@ async def quick_analyze(
     label_meta = await ai.analyze_label(ocr_text, image_path=str(dest_path))
 
     engine = ComplianceEngine()
-    summary = engine.run(declarations)
+    if hasattr(ai, "evaluate_compliance_ai"):
+        ai_results = await ai.evaluate_compliance_ai(declarations)
+        summary = engine.run_ai_results(ai_results, declarations)
+    else:
+        summary = engine.run_ai_results([], declarations)
 
     return {
         "success": True,
@@ -128,6 +146,8 @@ async def quick_analyze(
             },
             "image_quality": quality,
             "ocr_text_preview": ocr_text[:500] if ocr_text else "",
+            "image_url": cloudinary_result["url"],
+            "image_public_id": cloudinary_result["public_id"],
         },
         "message": "[DEMO] Quick analysis complete. Results are not saved.",
     }

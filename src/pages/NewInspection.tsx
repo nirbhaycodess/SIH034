@@ -72,6 +72,7 @@ export function NewInspection() {
   const [qualityMetrics, setQualityMetrics] = useState<ImageQualityMetrics | null>(null);
   const [enhancedPreviewUrl, setEnhancedPreviewUrl] = useState<string | null>(null);
   const [showEnhanced, setShowEnhanced] = useState<boolean>(false);
+  const [notLabelWarning, setNotLabelWarning] = useState<boolean>(false);
   const retakeInputRef = useRef<HTMLInputElement>(null);
   const nav = useNavigate();
   const { info, success, warning } = useToast();
@@ -80,6 +81,7 @@ export function NewInspection() {
     setRealFile(f);
     setSelectedSampleId(null);
     setFileName(f.name);
+    setNotLabelWarning(false);
     const objUrl = URL.createObjectURL(f);
     setPreviewUrl(objUrl);
     setShowEnhanced(false);
@@ -104,6 +106,7 @@ export function NewInspection() {
     setFileName(sample.fileName);
     setRealFile(null);
     setSelectedSampleId(sample.id);
+    setNotLabelWarning(false);
     setQualityMetrics({
       sharpnessScore: 94,
       contrastScore: 91,
@@ -124,6 +127,7 @@ export function NewInspection() {
     if (!previewUrl) return;
     setLoading(true);
     setCurrentStep(1);
+    setNotLabelWarning(false);
 
     try {
       if (realFile) {
@@ -141,6 +145,14 @@ export function NewInspection() {
           },
           languageMode
         );
+
+        // Check if the result is a "not a label" rejection
+        const isNotLabel = res.violations?.some((v: any) => v.id === 'V-NOTLABEL');
+        if (isNotLabel) {
+          setNotLabelWarning(true);
+          setLoading(false);
+          return; // Don't navigate — show warning on the page
+        }
 
         success('Analysis Complete', `Extracted declarations and evaluated Rule 6 for ${res.product}`);
         nav(`/inspection/${res.id}`);
@@ -226,6 +238,46 @@ export function NewInspection() {
             </div>
 
             <ImageUploader onFile={handleFile} selectedName={fileName} />
+
+            {/* ⚠️ Not a Product Label Warning Banner */}
+            {notLabelWarning && (
+              <div className="mt-4 rounded-2xl border-2 border-rose-400 bg-rose-50 p-4 shadow-md animate-pulse-once">
+                <div className="flex items-start gap-3">
+                  <div className="shrink-0 w-10 h-10 rounded-xl bg-rose-100 border border-rose-300 flex items-center justify-center text-xl">
+                    🚫
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-black text-rose-800">Invalid Image — Not a Product Label</p>
+                    <p className="mt-1 text-xs text-rose-700 leading-relaxed">
+                      The uploaded image does not appear to be a product packaging label. 
+                      The AI detected <strong>insufficient label signals</strong> (no MRP, manufacturer, net quantity, FSSAI, ingredients, etc.).
+                    </p>
+                    <div className="mt-3 rounded-xl bg-white border border-rose-200 p-3">
+                      <p className="text-[11px] font-bold text-rose-900 mb-1.5">✅ Please upload one of the following:</p>
+                      <ul className="text-[11px] text-rose-700 space-y-0.5 list-disc list-inside">
+                        <li>A photo of a biscuit / food packet label</li>
+                        <li>A photo of a shampoo / cosmetic bottle label</li>
+                        <li>A photo of any packaged commodity sold in India</li>
+                        <li>A clear, well-lit photo showing MRP, manufacturer details</li>
+                      </ul>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNotLabelWarning(false);
+                        setPreviewUrl('');
+                        setFileName('');
+                        setRealFile(null);
+                      }}
+                      className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition"
+                    >
+                      <Camera size={13} />
+                      Upload a Different Image
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* SIH Demo 1-Click Samples */}
             <div className="mt-5 pt-4 border-t border-slate-100">

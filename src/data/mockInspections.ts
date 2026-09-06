@@ -4,6 +4,7 @@ export const mockInspections: Inspection[] = [
   {
     id: 'INS-2024-PARLEG',
     product: 'Parle-G Original Gluco Biscuits',
+    imageUrl: 'https://images.unsplash.com/photo-1558961363-fa8fdf82db35?auto=format&fit=crop&w=800&q=80', // Replace with a generic biscuit/cookie image for the demo
     manufacturer: 'Parle Products Pvt. Ltd., North Level Crossing, Vile Parle East, Mumbai 400057',
     date: '02 Sep 2026',
     score: 96,

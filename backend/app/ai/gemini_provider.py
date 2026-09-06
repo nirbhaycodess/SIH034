@@ -141,6 +141,26 @@ class GeminiProvider(AIProvider):
             logger.warning("Gemini explain_finding failed: %s", exc)
             return f"Finding for '{field}' detected as '{detected_value}'."
 
+    async def evaluate_compliance_ai(self, declarations: Dict[str, Any]) -> List[Dict[str, Any]]:
+        from .prompts import COMPLIANCE_EVALUATION_PROMPT
+        import json
+        
+        prompt = COMPLIANCE_EVALUATION_PROMPT.format(declarations_json=json.dumps(declarations, indent=2))
+        
+        try:
+            raw_text = await self._call_gemini_api(prompt)
+            # Extract JSON array from response
+            json_match = re.search(r"\[[\s\S]*\]", raw_text)
+            if json_match:
+                results = json.loads(json_match.group(0))
+                return results
+            else:
+                logger.error("Failed to parse compliance AI response JSON: %s", raw_text)
+                return []
+        except Exception as exc:
+            logger.error("Gemini compliance evaluation error: %s", exc)
+            return []
+
     def _normalize(self, raw: dict) -> Dict[str, Dict[str, Any]]:
         """Ensure every field follows {value, confidence} structure."""
         fields = [
@@ -155,6 +175,7 @@ class GeminiProvider(AIProvider):
             "packer",
             "importer",
             "manufacturing_date",
+            "is_label",
         ]
         result = {}
         for f in fields:

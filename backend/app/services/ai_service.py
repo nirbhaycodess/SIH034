@@ -108,9 +108,31 @@ async def run_analysis_pipeline(inspection_id: str, db: Database) -> Dict[str, A
                 db["declarations"].insert_one(doc)
                 declaration_docs.append(doc)
 
-        # 6. Run deterministic compliance engine
+        # 5. Run AI-driven compliance engine
         engine = ComplianceEngine()
-        summary = engine.run(declarations)
+
+        # Strict check: ensure the uploaded image is a product label
+        is_label_flag = declarations.get('is_label', {}).get('value')
+        ai_results = []
+        if not is_label_flag:
+            # Generate a compliance result indicating label not detected
+            ai_results.append({
+                "rule_id": "Label Detection",
+                "field_name": "is_label",
+                "status": "FAIL",
+                "expected_condition": "Uploaded image must be a product label.",
+                "explanation": "The image does not appear to be a product label; it looks like plain text or unrelated content.",
+                "severity_if_fail": "HIGH",
+            })
+            # Skip other AI rule evaluations
+            summary = engine.run_ai_results(ai_results, declarations)
+        else:
+            # Normal flow: evaluate other compliance rules
+            if hasattr(ai_provider, "evaluate_compliance_ai"):
+                ai_results = await ai_provider.evaluate_compliance_ai(declarations)
+                summary = engine.run_ai_results(ai_results, declarations)
+            else:
+                summary = engine.run_ai_results([], declarations)
 
         # 7. Save compliance checks to MongoDB
         db["compliance_checks"].delete_many({"inspection_id": insp_oid})

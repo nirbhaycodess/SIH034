@@ -93,93 +93,140 @@ Date: ${inspection.date}
         <div className="rounded-2xl border-2 border-slate-300/80 bg-white p-6 sm:p-8 shadow-sm relative overflow-hidden font-sans">
           {/* Subtle Watermark */}
           <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none select-none">
-            <span className="text-8xl font-black text-slate-900 tracking-widest uppercase">
-              LEGAL METROLOGY
-            </span>
+            {/* Large Ashoka Chakra Watermark */}
+            <svg viewBox="0 0 100 100" className="w-96 h-96 text-slate-900 fill-current">
+              <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="2"/>
+              {Array.from({length: 24}).map((_, i) => (
+                <line key={i} x1="50" y1="50" x2="50" y2="5" stroke="currentColor" strokeWidth="1" transform={`rotate(${i * 15} 50 50)`} />
+              ))}
+              <circle cx="50" cy="50" r="10" fill="none" stroke="currentColor" strokeWidth="2"/>
+            </svg>
           </div>
 
           {/* Certificate Header */}
-          <div className="text-center pb-6 border-b border-slate-200">
-            <div className="inline-flex items-center justify-center p-2 rounded-xl bg-navy-50 text-navy-800 mb-2 border border-navy-100">
-              <ShieldCheck size={26} className="text-brand-700" />
+          <div className="text-center pb-6 border-b-2 border-slate-300 relative z-10">
+            {/* National Emblem Placeholder (Ashoka Chakra) */}
+            <div className="flex justify-center mb-4">
+              <svg viewBox="0 0 100 100" className="w-16 h-16 text-slate-800 fill-current">
+                <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="4"/>
+                {Array.from({length: 24}).map((_, i) => (
+                  <line key={i} x1="50" y1="50" x2="50" y2="5" stroke="currentColor" strokeWidth="2" transform={`rotate(${i * 15} 50 50)`} />
+                ))}
+                <circle cx="50" cy="50" r="10" fill="none" stroke="currentColor" strokeWidth="4"/>
+              </svg>
             </div>
-            <p className="text-[11px] font-bold tracking-widest uppercase text-slate-500">
-              GOVERNMENT OF INDIA • DEPARTMENT OF CONSUMER AFFAIRS
+            <p className="text-xs font-bold tracking-[0.2em] uppercase text-slate-600 font-serif mb-1">
+              Government of India
             </p>
-            <h2 className="text-xl font-extrabold text-slate-900 mt-1">
-              Certificate of Packaged Commodity Inspection
+            <p className="text-[10px] font-bold tracking-widest uppercase text-slate-500 font-serif">
+              Ministry of Consumer Affairs, Food & Public Distribution
+            </p>
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mt-4 font-serif border-y border-slate-200 py-3 mx-auto w-fit px-8">
+              CERTIFICATE OF INSPECTION
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5 font-mono">
+            <p className="text-xs text-slate-600 mt-3 font-mono font-medium">
               Issued under the Legal Metrology (Packaged Commodities) Rules, 2011 (Rule 6 & 18)
             </p>
           </div>
 
           {/* Key Identification Grid */}
-          <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Inspection ID</p>
-              <p className="font-mono font-bold text-slate-900 mt-0.5">{inspection.id}</p>
+          <div className="mt-8 relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-0 text-xs border border-slate-300">
+            <div className="p-3 border-r border-b sm:border-b-0 border-slate-300">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 font-serif mb-1">Inspection ID No.</p>
+              <p className="font-mono font-bold text-slate-900">{inspection.id}</p>
             </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Inspection Date</p>
-              <p className="font-medium text-slate-900 mt-0.5">{inspection.date}</p>
+            <div className="p-3 border-b sm:border-b-0 sm:border-r border-slate-300">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 font-serif mb-1">Date of Audit</p>
+              <p className="font-medium text-slate-900 font-serif">{inspection.date}</p>
             </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Compliance Score</p>
-              <p className="font-bold text-brand-700 mt-0.5">{inspection.score}% Conformance</p>
+            <div className="p-3 border-r border-slate-300">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 font-serif mb-1">Compliance Score</p>
+              <p className="font-bold text-slate-900 font-serif">{inspection.score}% Conformance</p>
             </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</p>
-              <div className="mt-0.5">
+            <div className="p-3">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 font-serif mb-1">Overall Status</p>
+              <div>
                 <Badge status={inspection.status} size="sm" />
               </div>
             </div>
           </div>
 
           {/* Verified Commodity Information */}
-          <div className="mt-6 space-y-4 text-xs">
-            <div className="border-b border-slate-100 pb-3">
-              <h4 className="font-bold text-slate-900 text-sm">{inspection.product}</h4>
-              <p className="text-slate-500 mt-0.5">
-                Manufacturer/Packer: <span className="font-semibold text-slate-800">{inspection.manufacturer}</span>
+          <div className="mt-8 space-y-5 text-sm relative z-10 font-serif">
+            <div className="pb-4">
+              <p className="text-xs text-slate-500 mb-1">This is to certify that the packaged commodity titled:</p>
+              <h4 className="font-bold text-slate-900 text-lg uppercase tracking-wide">{inspection.product}</h4>
+              <p className="text-slate-600 mt-2 text-sm">
+                Manufactured or packed by <span className="font-bold text-slate-900">{inspection.manufacturer}</span>, 
+                was inspected and evaluated against the mandatory declarations under the Legal Metrology (Packaged Commodities) Rules, 2011.
               </p>
             </div>
 
             {/* Checklist Findings */}
-            <div>
-              <p className="font-bold text-slate-800 mb-2 uppercase text-[10px] tracking-wider text-slate-500">
-                Statutory Rule 6 Declaration Audit:
+            <div className="bg-slate-50 border border-slate-200 p-4">
+              <p className="font-bold text-slate-900 mb-3 uppercase text-[11px] tracking-widest border-b border-slate-200 pb-2">
+                Statutory Rule 6 Declaration Audit
               </p>
-              <ul className="grid sm:grid-cols-2 gap-2 text-slate-600">
+              <ul className="grid sm:grid-cols-2 gap-y-3 gap-x-4 text-slate-800 text-xs">
                 {inspection.checks.map((c, i) => (
-                  <li key={i} className="flex items-start justify-between gap-2">
-                    <span className="truncate">• {c.requirement}: <b className="text-slate-800 font-mono">{c.detectedValue}</b></span>
+                  <li key={i} className="flex items-start justify-between gap-3">
+                    <span className="leading-relaxed">
+                      <span className="font-semibold">{c.requirement}:</span>{" "}
+                      <span className="font-mono bg-white px-1 py-0.5 border border-slate-200 text-brand-700">{c.detectedValue}</span>
+                    </span>
                     <Badge status={c.status} size="sm" />
                   </li>
                 ))}
               </ul>
             </div>
+
+            {/* Violations / Infractions (Only show if there are any) */}
+            {inspection.violations && inspection.violations.length > 0 && (
+              <div className="bg-red-50/50 border border-red-200 p-4 mt-4">
+                <p className="font-bold text-red-900 mb-3 uppercase text-[11px] tracking-widest border-b border-red-200 pb-2">
+                  Recorded Infractions & Statutory Violations
+                </p>
+                <div className="space-y-3">
+                  {inspection.violations.map((v, i) => (
+                    <div key={i} className="text-xs text-red-900">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-bold uppercase tracking-wider">{v.rule}</span>
+                        <span className="text-[10px] bg-red-100 px-1.5 py-0.5 font-bold uppercase">{v.severity}</span>
+                      </div>
+                      <p className="font-medium text-red-800">{v.title}</p>
+                      <p className="text-red-700 mt-0.5 opacity-80">{v.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Officer Signature & QR Verification */}
-          <div className="mt-8 pt-6 border-t border-slate-200 flex items-end justify-between">
-            <div className="flex items-center gap-3">
-              <div className="grid h-14 w-14 place-items-center rounded-lg border border-slate-200 bg-white p-1 shadow-xs">
-                <QrCode size={44} className="text-slate-800" />
+          <div className="mt-12 pt-8 border-t-2 border-slate-300 flex items-end justify-between relative z-10">
+            <div className="flex items-center gap-4">
+              <div className="grid h-20 w-20 place-items-center bg-white border-2 border-slate-300 p-1">
+                <QrCode size={64} className="text-slate-900" />
               </div>
-              <div className="text-[11px] text-slate-500 font-mono">
-                <p className="font-bold text-slate-800">DIGITALLY VERIFIED</p>
-                <p>Hash: 7a9e…4f01</p>
-                <p>National Portal Grid</p>
+              <div className="text-[10px] text-slate-500 font-mono">
+                <p className="font-bold text-slate-900 text-xs mb-1">DIGITALLY VERIFIED</p>
+                <p>Auth: LMD-GOI-4492A</p>
+                <p>Hash: 7a9e3b4f...01c</p>
+                <p>Timestamp: {inspection.date}</p>
               </div>
             </div>
 
-            <div className="text-right text-xs">
-              <div className="inline-block border-b border-slate-400 pb-1 px-4 mb-1">
-                <span className="font-serif italic text-brand-900 font-bold">Priya Sharma</span>
+            <div className="text-center">
+              <div className="mb-2">
+                {/* Dummy Signature SVG */}
+                <svg viewBox="0 0 100 40" className="h-10 w-32 mx-auto text-brand-900 stroke-current opacity-80" fill="transparent" strokeWidth="2">
+                  <path d="M10,20 Q15,5 20,25 T30,15 T40,25 Q45,10 50,30 T60,20 T70,30 Q75,15 80,25 T90,20" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </div>
-              <p className="font-bold text-slate-900">{inspection.inspector}</p>
-              <p className="text-slate-500 text-[11px]">Senior Legal Metrology Officer</p>
+              <div className="border-t border-slate-400 pt-1 px-4">
+                <p className="font-bold text-slate-900 font-serif text-sm uppercase">{inspection.inspector}</p>
+                <p className="text-slate-500 text-[10px] font-serif uppercase tracking-widest mt-1">Senior Metrology Officer</p>
+              </div>
             </div>
           </div>
         </div>

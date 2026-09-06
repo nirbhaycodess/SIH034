@@ -81,9 +81,80 @@ export async function analyzeRealLabelImage(
   const lines = rawText.split('\n').map((l) => l.trim()).filter(Boolean);
   const words = (ocrResult.data as any).words || rawText.split(/\s+/).filter(Boolean);
 
+  // =========================================================
+  // STRICT PRODUCT LABEL DETECTION (before any other logic)
+  // =========================================================
+  const labelSignals: string[] = [
+    'mrp', 'maximum retail price', 'm.r.p', 'net qty', 'net quantity',
+    'net wt', 'manufacturer', 'mfg', 'packed by', 'packer', 'importer',
+    'consumer care', 'best before', 'use by', 'expiry', 'mfd', 'ingredients',
+    'nutrition', 'country of origin', 'fssai', 'lic. no', 'isi', 'agmark',
+    'batch', 'lot no', 'customer care', 'helpline', 'email', '₹', 'rs.',
+    'incl', 'inclusive', 'grams', 'gms', 'kgs', 'ml', 'kg', 'litre',
+  ];
+  const signalHits = labelSignals.filter((sig) => textLower.includes(sig)).length;
+  const wordCount = rawText.split(/\s+/).filter(Boolean).length;
+  const isProductLabel = signalHits >= 3 && wordCount >= 10;
+
+  if (!isProductLabel) {
+    const notLabelInspection: Inspection = {
+      id: `INS-INVALID-${Date.now()}`,
+      product: 'Invalid Upload',
+      manufacturer: 'N/A',
+      date: new Date().toLocaleDateString('en-IN'),
+      score: 0,
+      status: 'VIOLATION',
+      inspector: 'AI Label Detector',
+      category: 'Unknown',
+      declarations: [],
+      checks: [
+        {
+          requirement: '🚫 Product Label Required',
+          detectedValue: `Detected ${wordCount} words, ${signalHits} label signals`,
+          status: 'FAIL',
+          explanation:
+            'The uploaded image does not appear to be a product label. Please upload a clear photo of a packaged commodity label (e.g., a biscuit packet, shampoo bottle, etc.).',
+        },
+      ],
+      violations: [
+        {
+          id: 'V-NOTLABEL',
+          rule: 'Pre-Check',
+          title: 'Invalid Upload — Not a Product Label',
+          severity: 'High',
+          description:
+            'The uploaded image was identified as a non-label image (e.g., a selfie, document, or blank image). The system only analyses packaged commodity labels under the Legal Metrology (Packaged Commodities) Rules, 2011.',
+        },
+      ],
+      imageUrl,
+    };
+    return {
+      inspection: notLabelInspection,
+      rawText,
+      detectedLanguage: 'Unknown',
+      isRule93Compliant: false,
+      commodityIntelligence: {
+        genericCommodityName: 'Unknown',
+        classificationConfidence: 0,
+        category: 'Commercial FMCG',
+        subCategory: 'Unknown',
+        applicableSchedule: 'Unknown',
+        regulatoryStandard: 'Unknown',
+        unitMeasurementRule: 'count_number',
+        mandatoryCrossRegulations: [],
+        detectedIndustryStandards: {},
+      },
+      qualityMetrics: metrics,
+      enhancedImageUrl: imageUrl,
+      boundingBoxes: [],
+      imageUrl,
+    };
+  }
+  // =========================================================
+
   onProgress?.(65, 'Running AI Commodity Classification & Taxonomic Typology Inference…');
 
-  // Step 2: Advanced Commodity Classification & Typology Recognition
+  // Commodity Classification & Typology Recognition
   const intelligence = classifyCommodity(rawText, imageFile.name);
 
   // Detect script characteristics under Rule 9(3)
@@ -98,7 +169,6 @@ export async function analyzeRealLabelImage(
   } else {
     detectedLanguage = 'English';
   }
-
   const isRule93Compliant = hasHindiDevanagari || hasEnglishLatin;
 
   onProgress?.(75, `Identified commodity: ${intelligence.genericCommodityName} (${intelligence.classificationConfidence}% certainty)…`);
@@ -436,6 +506,7 @@ export async function analyzeRealLabelImage(
     declarations,
     checks,
     violations,
+    imageUrl: imageUrl, // Add the image URL to the inspection object
   };
 
   onProgress?.(100, `Image enhanced & classified as ${intelligence.genericCommodityName} (${intelligence.classificationConfidence}% confidence)!`);

@@ -144,7 +144,13 @@ export async function analyzePackage(
       try {
         const form = new FormData();
         form.append('file', file);
-        await apiFetch('/analysis/quick-analyze', { method: 'POST', body: form });
+        const backendResult = await apiFetch<{
+          data?: { image_url?: string };
+        }>('/analysis/quick-analyze', { method: 'POST', body: form });
+        if (backendResult.data?.image_url) {
+          result.inspection.imageUrl = backendResult.data.image_url;
+          saveNewInspection(result.inspection);
+        }
       } catch {
         // Non-fatal — client-side result is authoritative for UX
       }

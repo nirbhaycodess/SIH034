@@ -34,6 +34,13 @@ async def lifespan(app: FastAPI):
         create_indexes()
         logger.info("✅ MongoDB indexes ensured.")
 
+        # Test Cloudinary connection
+        from .services.cloudinary_service import test_connection as cloudinary_ping
+        if cloudinary_ping():
+            logger.info("✅ Cloudinary connected — cloud: %s", settings.cloudinary_cloud_name)
+        else:
+            logger.warning("⚠️  Cloudinary connection failed — check CLOUDINARY_* env vars.")
+
         # Ensure upload/report directories exist
         settings.upload_path.mkdir(parents=True, exist_ok=True)
         settings.report_path.mkdir(parents=True, exist_ok=True)

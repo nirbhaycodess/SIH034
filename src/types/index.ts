@@ -48,6 +48,7 @@ export interface Inspection {
   declarations: Declaration[];
   checks: ComplianceCheck[];
   violations: Violation[];
+  imageUrl?: string;
 }
 export interface Report {
   id: string;

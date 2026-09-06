@@ -99,9 +99,9 @@ AI Declaration Extraction (app/ai/mock_provider.py or gemini_provider.py)
     ↓
 Deterministic Compliance Engine (app/compliance/engine.py)
     ↓
-DEMO Rules Evaluation (app/compliance/rules/demo_rules.py)
+Compliance scoring (app/compliance/engine.py)
     ↓
-Results saved to MongoDB
+Results returned and saved to MongoDB where applicable
 ```
 
 > ⚠️ **IMPORTANT**: AI providers extract declarations only.  

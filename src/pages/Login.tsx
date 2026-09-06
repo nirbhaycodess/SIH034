@@ -11,21 +11,37 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/common/Button';
 import { useState } from 'react';
 import { useToast } from '../context/ToastContext';
+import {
+  firebaseErrorMessage,
+  isFirebaseConfigured,
+  signInWithFirebase,
+} from '../services/firebaseAuth';
 
 export function Login() {
   const nav = useNavigate();
-  const { success } = useToast();
-  const [email, setEmail] = useState('priya.sharma@gov.in');
-  const [password, setPassword] = useState('password123');
+  const { success, error: showError } = useToast();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      success('Authentication Successful', 'Welcome back, Inspector Priya Sharma.');
+    try {
+      if (isFirebaseConfigured()) {
+        const user = await signInWithFirebase(email, password);
+        success('Authentication Successful', `Welcome back, ${user.displayName || user.email}.`);
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        success('Demo Authentication Successful', 'Firebase is not configured; demo mode is active.');
+      }
       nav('/dashboard');
-    }, 600);
+    } catch (error) {
+      // Firebase provides the authoritative authentication result.
+      showError('Authentication Failed', firebaseErrorMessage(error));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleQuickDemo = () => {
@@ -75,7 +91,7 @@ export function Login() {
         <div className="relative z-10 my-auto max-w-xl py-8">
           <div className="inline-flex items-center gap-2 rounded-full bg-brand-500/15 px-3 py-1 text-xs font-bold text-brand-300 border border-brand-500/30 mb-5">
             <Scale size={14} />
-            <span>Smart India Hackathon 2024 Showcase</span>
+            <span>Smart India Hackathon 2026 Showcase</span>
           </div>
 
           <h1 className="text-3xl xl:text-4xl font-black leading-tight tracking-tight text-white">

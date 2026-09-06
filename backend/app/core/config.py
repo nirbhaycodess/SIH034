@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     report_dir: str = "reports"
     max_upload_size_mb: int = 10
 
+    # ── Cloudinary ────────────────────────────────────────────────────────────
+    cloudinary_cloud_name: str = ""
+    cloudinary_api_key: str = ""
+    cloudinary_api_secret: str = ""
+
     # ── CORS ─────────────────────────────────────────────────────────────────
     cors_origins: str = "http://localhost:5173,http://localhost:5174,http://localhost:5175"
 

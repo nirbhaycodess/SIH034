@@ -226,7 +226,7 @@ export function InspectionResult() {
       <div className="grid gap-6 lg:grid-cols-12 items-start">
         {/* LEFT: Package Image with Highlighted Detection Regions */}
         <div className="lg:col-span-7">
-          <BoundingBoxViewer productName={item.product} />
+          <BoundingBoxViewer productName={item.product} imageUrl={item.imageUrl} />
         </div>
 
         {/* RIGHT: Compliance Summary Checklist */}
@@ -238,59 +238,51 @@ export function InspectionResult() {
                 <p className="text-xs text-slate-500">Rule 6 Mandatory Checklist</p>
               </div>
               <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-600">
-                4/6 Verified
+                {item.checks.filter((c) => c.status === 'PASS').length}/{item.checks.length} Verified
               </span>
             </div>
 
-            {/* Checklist Items exactly as requested in prompt */}
             <div className="mt-4 space-y-3">
-              <div className="flex items-start gap-3 rounded-xl p-3 bg-emerald-50/70 border border-emerald-100 text-xs">
-                <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-emerald-950">Product name detected</p>
-                  <p className="text-[11px] text-emerald-800 font-mono mt-0.5">FreshGlow Herbal Shampoo (98% conf)</p>
-                </div>
-              </div>
+              {item.checks.map((check, idx) => {
+                let bgClass = 'bg-slate-50/70 border-slate-200';
+                let textClass = 'text-slate-950';
+                let subTextClass = 'text-slate-800';
+                let Icon = CheckCircle2;
+                let iconClass = 'text-slate-600';
 
-              <div className="flex items-start gap-3 rounded-xl p-3 bg-emerald-50/70 border border-emerald-100 text-xs">
-                <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-emerald-950">Manufacturer detected</p>
-                  <p className="text-[11px] text-emerald-800 font-mono mt-0.5">Aarav Consumer Products Pvt. Ltd.</p>
-                </div>
-              </div>
+                if (check.status === 'PASS') {
+                  bgClass = 'bg-emerald-50/70 border-emerald-100';
+                  textClass = 'text-emerald-950';
+                  subTextClass = 'text-emerald-800';
+                  Icon = CheckCircle2;
+                  iconClass = 'text-emerald-600';
+                } else if (check.status === 'WARNING' || check.status === 'REVIEW') {
+                  bgClass = 'bg-amber-50/70 border-amber-200';
+                  textClass = 'text-amber-950';
+                  subTextClass = 'text-amber-800';
+                  Icon = AlertTriangle;
+                  iconClass = 'text-amber-600';
+                } else if (check.status === 'FAIL') {
+                  bgClass = 'bg-rose-50/70 border-rose-200';
+                  textClass = 'text-rose-950';
+                  subTextClass = 'text-rose-800';
+                  Icon = XCircle;
+                  iconClass = 'text-rose-600';
+                }
 
-              <div className="flex items-start gap-3 rounded-xl p-3 bg-emerald-50/70 border border-emerald-100 text-xs">
-                <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-emerald-950">Net quantity detected</p>
-                  <p className="text-[11px] text-emerald-800 font-mono mt-0.5">340 ml in standard units (99% conf)</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 rounded-xl p-3 bg-emerald-50/70 border border-emerald-100 text-xs">
-                <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-emerald-950">MRP detected</p>
-                  <p className="text-[11px] text-emerald-800 font-mono mt-0.5">₹299.00 (inclusive of all taxes)</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 rounded-xl p-3 bg-amber-50/70 border border-amber-200 text-xs">
-                <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-amber-950">Customer care requires review</p>
-                  <p className="text-[11px] text-amber-800 mt-0.5">Missing phone/email helpline under Rule 6(1)(l)</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 rounded-xl p-3 bg-rose-50/70 border border-rose-200 text-xs">
-                <XCircle size={18} className="text-rose-600 shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-rose-950">Manufacturing information missing</p>
-                  <p className="text-[11px] text-rose-800 mt-0.5">Month & year of packing not prominently visible</p>
-                </div>
-              </div>
+                return (
+                  <div key={idx} className={`flex items-start gap-3 rounded-xl p-3 border text-xs ${bgClass}`}>
+                    <Icon size={18} className={`shrink-0 mt-0.5 ${iconClass}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className={`font-bold ${textClass}`}>{check.requirement}</p>
+                      <p className={`text-[11px] mt-0.5 ${subTextClass}`}>
+                        <span className="font-mono bg-white/50 px-1 rounded">{check.detectedValue || 'Not Detected'}</span>
+                        <span className="block mt-1 opacity-90">{check.explanation}</span>
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
