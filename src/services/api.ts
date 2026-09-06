@@ -12,7 +12,9 @@ import type { Inspection, Product } from '../types';
 const configuredApiBase = import.meta.env.VITE_API_BASE_URL as string | undefined;
 const API_BASE = configuredApiBase
   ? `${configuredApiBase.replace(/\/$/, '')}${configuredApiBase.endsWith('/api/v1') ? '' : '/api/v1'}`
-  : undefined;
+  : import.meta.env.DEV
+    ? 'http://localhost:8000/api/v1'
+    : undefined;
 
 // ── Token storage ─────────────────────────────────────────────────────────
 const TOKEN_KEY = 'packsure_access_token';

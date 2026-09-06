@@ -171,7 +171,7 @@ export function NewInspection() {
       console.error(err);
       setLoading(false);
       const message = err instanceof Error ? err.message : 'The server analysis failed.';
-      warning('Analysis Failed', `${message} No mock result was created.`);
+      warning('Backend Analysis Failed', `${message} Start the backend at http://localhost:8000 and try again.`);
     }
   }
 

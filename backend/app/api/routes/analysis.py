@@ -96,7 +96,6 @@ async def quick_analyze(
 
     dest_path = secure_save_path(settings.upload_path, file.filename)
     dest_path.write_bytes(content)
-    analysis_id = f"quick_{uuid4().hex}"
     try:
         cloudinary_result = upload_label_image(dest_path, f"quick_{uuid4().hex}")
     except Exception as exc:
