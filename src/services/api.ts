@@ -62,6 +62,10 @@ async function apiFetch<T>(
     const detail = typeof err?.detail === 'string'
       ? err.detail
       : err?.error?.message;
+    if (res.status === 401 || res.status === 403) {
+      clearTokens();
+      throw new Error('Your backend session is missing or expired. Sign in again before uploading.');
+    }
     throw new Error(detail ?? `${res.status} ${res.statusText}`);
   }
 

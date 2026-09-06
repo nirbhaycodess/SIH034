@@ -173,7 +173,11 @@ export function NewInspection() {
       const message = err instanceof Error ? err.message : 'The server analysis failed.';
       warning(
         'Backend Analysis Failed',
-        `${message}${import.meta.env.DEV ? ' Ensure the backend is running at http://localhost:8000.' : ' Check the deployed backend API configuration.'}`,
+        `${message}${message.includes('session')
+          ? ''
+          : import.meta.env.DEV
+            ? ' Ensure the backend is running at http://localhost:8000.'
+            : ' Check the deployed backend API configuration.'}`,
       );
     }
   }
