@@ -16,6 +16,10 @@ const API_BASE = configuredApiBase
     ? 'http://localhost:8000/api/v1'
     : undefined;
 
+export function isBackendConfigured(): boolean {
+  return Boolean(API_BASE);
+}
+
 // ── Token storage ─────────────────────────────────────────────────────────
 const TOKEN_KEY = 'packsure_access_token';
 const REFRESH_KEY = 'packsure_refresh_token';

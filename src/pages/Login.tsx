@@ -16,6 +16,7 @@ import {
   isFirebaseConfigured,
   signInWithFirebase,
 } from '../services/firebaseAuth';
+import { isBackendConfigured, login as backendLogin } from '../services/api';
 
 export function Login() {
   const nav = useNavigate();
@@ -28,7 +29,10 @@ export function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      if (isFirebaseConfigured()) {
+      if (isBackendConfigured()) {
+        const user = await backendLogin(email, password);
+        success('Authentication Successful', `Welcome back, ${user.name}.`);
+      } else if (isFirebaseConfigured()) {
         const user = await signInWithFirebase(email, password);
         success('Authentication Successful', `Welcome back, ${user.displayName || user.email}.`);
       } else {
@@ -46,9 +50,22 @@ export function Login() {
 
   const handleQuickDemo = () => {
     setLoading(true);
+    if (isBackendConfigured()) {
+      backendLogin('priya.sharma@packsure.gov.in', 'Inspector@123')
+        .then((user) => {
+          success('Demo Session Initialized', `Logged in as ${user.name}.`);
+          nav('/dashboard');
+        })
+        .catch((error) => {
+          showError('Demo Login Failed', error instanceof Error ? error.message : 'Backend login failed.');
+        })
+        .finally(() => setLoading(false));
+      return;
+    }
     setTimeout(() => {
       success('Demo Session Initialized', 'Logged in with authorized Inspector credentials.');
       nav('/dashboard');
+      setLoading(false);
     }, 400);
   };
 
