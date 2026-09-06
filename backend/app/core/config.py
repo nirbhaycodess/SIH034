@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     # ── MongoDB ──────────────────────────────────────────────────────────────
     mongodb_uri: str = "mongodb://localhost:27017"
     mongodb_database: str = "packsure_ai"
+    mongodb_mode: str = "local"
 
     # ── JWT ──────────────────────────────────────────────────────────────────
     jwt_secret_key: str = "CHANGE_ME_BEFORE_PRODUCTION"

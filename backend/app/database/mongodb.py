@@ -13,13 +13,14 @@ _client: MongoClient | None = None
 def connect_to_mongo() -> None:
     """Create the shared MongoDB client. Supports local MongoDB and Atlas."""
     global _client
+    uri = "mongodb://localhost:27017" if settings.mongodb_mode.lower() == "local" else settings.mongodb_uri
     _client = MongoClient(
-        settings.mongodb_uri,
+        uri,
         serverSelectionTimeoutMS=10000,
         connectTimeoutMS=10000,
         socketTimeoutMS=60000,
-        retryWrites=settings.mongodb_uri.startswith("mongodb+srv://"),
-        tls=settings.mongodb_uri.startswith("mongodb+srv://"),
+        retryWrites=uri.startswith("mongodb+srv://"),
+        tls=uri.startswith("mongodb+srv://"),
     )
     # Ping to verify Atlas connectivity
     _client.admin.command("ping")

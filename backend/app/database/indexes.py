@@ -73,6 +73,7 @@ def create_indexes() -> None:
     db["ocr_results"].create_indexes([
         IndexModel([("inspection_id", ASCENDING)], name="ocr_inspection_id"),
         IndexModel([("analysis_id", ASCENDING)], name="ocr_analysis_id"),
+        IndexModel([("product_id", ASCENDING)], name="ocr_product_id"),
     ])
 
     # ── audit_logs ────────────────────────────────────────────────────────────

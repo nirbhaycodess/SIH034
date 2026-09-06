@@ -36,6 +36,16 @@ def _enrich_inspection(insp: dict, db: Database) -> dict:
         {**d, "_id": str(d["_id"]), "inspection_id": str(d["inspection_id"])}
         for d in db["declarations"].find({"inspection_id": insp_id})
     ]
+    ocr = db["ocr_results"].find_one(
+        {"inspection_id": insp_id},
+        sort=[("created_at", -1)],
+    )
+    if ocr:
+        ocr["_id"] = str(ocr["_id"])
+        ocr["inspection_id"] = str(ocr["inspection_id"])
+        if ocr.get("product_id"):
+            ocr["product_id"] = str(ocr["product_id"])
+    insp["_ocr_result"] = ocr
     insp["_compliance_checks"] = [
         {**c, "_id": str(c["_id"]), "inspection_id": str(c["inspection_id"])}
         for c in db["compliance_checks"].find({"inspection_id": insp_id})

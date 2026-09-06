@@ -78,16 +78,33 @@ async def run_analysis_pipeline(inspection_id: str, db: Database) -> Dict[str, A
 
         ocr_result = extract_text(primary_img)
         db["ocr_results"].delete_many({"inspection_id": insp_oid})
-        db["ocr_results"].insert_one({
+        ocr_doc = {
             "inspection_id": insp_oid,
+            "product_id": inspection.get("product_id"),
             "engine": ocr_result["engine"],
             "text": ocr_result["text"],
             "lines": ocr_result["lines"],
+            "status": "OCR_COMPLETE",
             "created_at": utcnow(),
-        })
+            "updated_at": utcnow(),
+        }
+        ocr_insert = db["ocr_results"].insert_one(ocr_doc)
 
         label_gate = await ai_provider.classify_label(image_path=primary_img)
         if not label_gate["is_label"]:
+            db["ocr_results"].update_one(
+                {"_id": ocr_insert.inserted_id},
+                {"$set": {
+                    "status": "LABEL_REJECTED",
+                    "gemini_validation": {
+                        "provider": label_gate["provider"],
+                        "label_gate": label_gate,
+                        "compliance_checks": [],
+                        "checked_at": utcnow(),
+                    },
+                    "updated_at": utcnow(),
+                }},
+            )
             summary = {
                 "inspection_id": inspection_id,
                 "status": "NEEDS_REVIEW",
@@ -131,6 +148,41 @@ async def run_analysis_pipeline(inspection_id: str, db: Database) -> Dict[str, A
 
         ai_results = await ai_provider.evaluate_compliance_ai(declarations)
         summary = engine.run_ai_results(ai_results, declarations)
+        gemini_validation = {
+            "provider": label_meta.get("provider", settings.ai_provider),
+            "model": label_meta.get("model"),
+            "label_gate": label_gate,
+            "declarations": declarations,
+            "compliance_checks": [
+                {
+                    "rule_id": result.rule_id,
+                    "field_name": result.field_name,
+                    "status": result.status,
+                    "detected_value": result.detected_value,
+                    "expected_condition": result.expected_condition,
+                    "explanation": result.explanation,
+                    "confidence": result.confidence,
+                }
+                for result in summary.results
+            ],
+            "summary": {
+                "status": summary.status,
+                "score": summary.score,
+                "passed": summary.passed,
+                "warnings": summary.warnings,
+                "failed": summary.failed,
+                "reviews": summary.reviews,
+            },
+            "checked_at": utcnow(),
+        }
+        db["ocr_results"].update_one(
+            {"_id": ocr_insert.inserted_id},
+            {"$set": {
+                "status": "GEMINI_CROSS_CHECK_COMPLETE",
+                "gemini_validation": gemini_validation,
+                "updated_at": utcnow(),
+            }},
+        )
 
         # 7. Save compliance checks to MongoDB
         db["compliance_checks"].delete_many({"inspection_id": insp_oid})
@@ -191,6 +243,7 @@ async def run_analysis_pipeline(inspection_id: str, db: Database) -> Dict[str, A
             "declarations": {k: v for k, v in declarations.items()},
             "ocr_text": ocr_result["text"],
             "ocr_engine": ocr_result["engine"],
+            "gemini_validation": gemini_validation,
             "summary": {
                 "passed": summary.passed,
                 "warnings": summary.warnings,

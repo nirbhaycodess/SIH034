@@ -36,6 +36,7 @@ def inspection_to_out(doc: dict, include_nested: bool = False) -> dict:
     if include_nested:
         out["product"] = doc.get("_product")
         out["declarations"] = doc.get("_declarations", [])
+        out["ocr_result"] = doc.get("_ocr_result")
         out["compliance_checks"] = doc.get("_compliance_checks", [])
         out["violations"] = doc.get("_violations", [])
         out["evidence"] = doc.get("_evidence", [])

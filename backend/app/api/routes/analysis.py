@@ -96,6 +96,7 @@ async def quick_analyze(
 
     dest_path = secure_save_path(settings.upload_path, file.filename)
     dest_path.write_bytes(content)
+    analysis_id = f"quick_{uuid4().hex}"
     try:
         cloudinary_result = upload_label_image(dest_path, f"quick_{uuid4().hex}")
     except Exception as exc:
@@ -104,17 +105,32 @@ async def quick_analyze(
     ai = get_ai_provider()
     ocr_result = extract_text(str(dest_path))
     analysis_id = f"quick_{uuid4().hex}"
-    db["ocr_results"].insert_one({
+    ocr_insert = db["ocr_results"].insert_one({
         "analysis_id": analysis_id,
         "engine": ocr_result["engine"],
         "text": ocr_result["text"],
         "lines": ocr_result["lines"],
         "image_url": cloudinary_result["url"],
+        "status": "OCR_COMPLETE",
         "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
     })
 
     label_gate = await ai.classify_label(image_path=str(dest_path))
     if not label_gate["is_label"]:
+        db["ocr_results"].update_one(
+            {"_id": ocr_insert.inserted_id},
+            {"$set": {
+                "status": "LABEL_REJECTED",
+                "gemini_validation": {
+                    "provider": label_gate["provider"],
+                    "label_gate": label_gate,
+                    "compliance_checks": [],
+                    "checked_at": datetime.now(timezone.utc),
+                },
+                "updated_at": datetime.now(timezone.utc),
+            }},
+        )
         return {
             "success": True,
             "data": {
@@ -159,6 +175,42 @@ async def quick_analyze(
     else:
         summary = engine.run_ai_results([], declarations)
 
+    gemini_validation = {
+        "provider": label_meta.get("provider", settings.ai_provider),
+        "model": label_meta.get("model"),
+        "label_gate": label_gate,
+        "declarations": declarations,
+        "compliance_checks": [
+            {
+                "rule_id": result.rule_id,
+                "field_name": result.field_name,
+                "status": result.status,
+                "detected_value": result.detected_value,
+                "expected_condition": result.expected_condition,
+                "explanation": result.explanation,
+                "confidence": result.confidence,
+            }
+            for result in summary.results
+        ],
+        "summary": {
+            "status": summary.status,
+            "score": summary.score,
+            "passed": summary.passed,
+            "warnings": summary.warnings,
+            "failed": summary.failed,
+            "reviews": summary.reviews,
+        },
+        "checked_at": datetime.now(timezone.utc),
+    }
+    db["ocr_results"].update_one(
+        {"_id": ocr_insert.inserted_id},
+        {"$set": {
+            "status": "GEMINI_CROSS_CHECK_COMPLETE",
+            "gemini_validation": gemini_validation,
+            "updated_at": datetime.now(timezone.utc),
+        }},
+    )
+
     return {
         "success": True,
         "data": {
@@ -187,8 +239,9 @@ async def quick_analyze(
             "image_quality": quality,
             "ocr_text": ocr_result["text"],
             "ocr_engine": ocr_result["engine"],
+            "gemini_validation": gemini_validation,
             "image_url": cloudinary_result["url"],
             "image_public_id": cloudinary_result["public_id"],
         },
-        "message": "[DEMO] Quick analysis complete. Results are not saved.",
+        "message": "PaddleOCR text and Gemini cross-check saved to local MongoDB.",
     }
