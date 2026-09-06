@@ -1,8 +1,26 @@
 """Prompts for Gemini AI provider."""
 
+LABEL_CLASSIFICATION_PROMPT = """
+You are the first safety gate for a packaged-commodity inspection system in India.
+Look at the uploaded image itself and decide whether it shows a real product package
+or product label containing packaging information, rather than a random photo, selfie,
+landscape, empty image, or unrelated document.
+
+Accept a label if any visible product/package identity or declaration is present, such
+as a product name, brand, MRP, quantity, manufacturing/packing/expiry date, ingredients,
+manufacturer, barcode, FSSAI number, consumer-care detail, or package panel.
+
+Return ONLY valid JSON:
+{
+  "is_label": true,
+  "confidence": 0.0,
+  "reason": "short reason"
+}
+"""
+
 EXTRACTION_PROMPT = """
 You are an AI assistant helping analyze Indian packaged commodity labels.
-Your task is to extract mandatory declarations from the OCR text below.
+Your task is to read the uploaded label image and extract mandatory declarations.
 
 IMPORTANT:
 - Only extract what is clearly present in the text.
@@ -23,7 +41,7 @@ Extract the following fields:
 10. importer — Importer name (for imported goods)
 11. is_label — Boolean indicating whether the image is a product label (true) or just normal text/image (false). Return {"value": true, "confidence": 0.99} if it looks like a label, otherwise {"value": false, "confidence": 0.99}.
 
-OCR Text:
+OCR Text (may be empty because Gemini reads the image directly):
 ---
 {ocr_text}
 ---
@@ -39,7 +57,8 @@ Respond ONLY with a valid JSON object in exactly this format:
   "country_of_origin": {{"value": "...", "confidence": 0.92}},
   "brand": {{"value": "...", "confidence": 0.94}},
   "packer": {{"value": null, "confidence": 0.0}},
-  "importer": {{"value": null, "confidence": 0.0}}
+  "importer": {{"value": null, "confidence": 0.0}},
+  "is_label": {{"value": true, "confidence": 0.95}}
 }}
 """
 
@@ -109,4 +128,3 @@ Respond ONLY with a valid JSON array of evaluation results for the checked rules
   }}
 ]
 """
-

@@ -66,6 +66,14 @@ class MockAIProvider(AIProvider):
             "note": "Mock analysis — no external API called.",
         }
 
+    async def classify_label(self, image_path: Optional[str] = None) -> Dict[str, Any]:
+        return {
+            "is_label": True,
+            "confidence": 0.5,
+            "reason": "Mock provider accepted the image for demo analysis.",
+            "provider": "MockAIProvider",
+        }
+
     async def explain_finding(self, field: str, detected_value: Optional[str]) -> str:
         if detected_value:
             return f"[Mock] '{field}' was detected with value: {detected_value}."

@@ -17,11 +17,9 @@ Pillow==11.1.0
 aiofiles==24.1.0
 cloudinary==1.44.1
 
-# ── Image / OCR (optional at runtime; guarded with try/except)
+# ── Image quality
 opencv-python-headless==4.10.0.84
 numpy==1.26.4
-# paddleocr==2.9.1        # uncomment to enable PaddleOCR
-# paddlepaddle==3.2.2     # uncomment to enable PaddleOCR
 
 # ── AI
 google-generativeai==0.8.4

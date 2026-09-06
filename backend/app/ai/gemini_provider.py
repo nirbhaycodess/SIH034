@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional
 import httpx
 
 from .interfaces import AIProvider
-from .prompts import EXTRACTION_PROMPT
+from .prompts import EXTRACTION_PROMPT, LABEL_CLASSIFICATION_PROMPT
 
 logger = logging.getLogger("packsure.ai.gemini")
 
@@ -47,14 +47,24 @@ class GeminiProvider(AIProvider):
         }
 
         parts: list[dict[str, Any]] = [{"text": prompt}]
-        if image_path and Path(image_path).exists():
+        if image_path:
             try:
-                ext = Path(image_path).suffix.lower()
+                image_bytes: bytes
+                if Path(image_path).exists():
+                    image_bytes = Path(image_path).read_bytes()
+                elif image_path.startswith(("http://", "https://")):
+                    async with httpx.AsyncClient(timeout=30.0) as image_client:
+                        image_response = await image_client.get(image_path)
+                        image_response.raise_for_status()
+                        image_bytes = image_response.content
+                else:
+                    raise ValueError(f"Image path does not exist: {image_path}")
+
+                ext = Path(image_path.split("?", 1)[0]).suffix.lower()
                 mime = "image/png" if ext == ".png" else "image/jpeg"
-                with open(image_path, "rb") as f:
-                    b64_data = base64.b64encode(f.read()).decode("utf-8")
+                b64_data = base64.b64encode(image_bytes).decode("utf-8")
                 parts.append({"inline_data": {"mime_type": mime, "data": b64_data}})
-            except Exception as e:
+            except (OSError, ValueError, httpx.HTTPError) as e:
                 logger.warning("Failed to encode image %s for multimodal Gemini: %s", image_path, e)
 
         body = {
@@ -109,6 +119,24 @@ class GeminiProvider(AIProvider):
 
         # Fallback: return empty declarations for REVIEW
         return self._empty_declarations()
+
+    async def classify_label(self, image_path: Optional[str] = None) -> Dict[str, Any]:
+        if not image_path:
+            raise ValueError("An image is required for Gemini label classification.")
+
+        raw_text = await self._call_gemini_api(LABEL_CLASSIFICATION_PROMPT, image_path=image_path)
+        json_match = re.search(r"\{[\s\S]*\}", raw_text)
+        if not json_match:
+            raise RuntimeError("Gemini returned an invalid label classification response.")
+
+        result = json.loads(json_match.group(0))
+        return {
+            "is_label": bool(result.get("is_label", False)),
+            "confidence": float(result.get("confidence", 0.0)),
+            "reason": str(result.get("reason", "")),
+            "provider": "GeminiProvider",
+            "model": self._preferred_model,
+        }
 
     async def analyze_label(
         self,

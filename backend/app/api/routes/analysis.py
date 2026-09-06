@@ -82,8 +82,7 @@ async def quick_analyze(
     Does NOT save to database.
     """
     from datetime import datetime, timezone
-    from ...ai.ocr import get_ocr_engine
-    from ...ai.image_processing import preprocess_for_ocr, get_image_quality
+    from ...ai.image_processing import get_image_quality
     from ...compliance.engine import ComplianceEngine
     from ...services.ai_service import get_ai_provider
 
@@ -101,16 +100,41 @@ async def quick_analyze(
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Cloudinary upload failed: {exc}")
 
-    # OCR + AI + Compliance
-    ocr_engine = get_ocr_engine()
-    processed = preprocess_for_ocr(str(dest_path))
-    quality = get_image_quality(processed)
-    ocr_results = ocr_engine.run(processed)
-    ocr_text = ocr_engine.full_text(ocr_results)
-
     ai = get_ai_provider()
-    declarations = await ai.extract_declarations(ocr_text, image_path=str(dest_path))
-    label_meta = await ai.analyze_label(ocr_text, image_path=str(dest_path))
+    label_gate = await ai.classify_label(image_path=str(dest_path))
+    if not label_gate["is_label"]:
+        return {
+            "success": True,
+            "data": {
+                "status": "NEEDS_REVIEW",
+                "compliance_score": 0,
+                "ai_provider": label_gate["provider"],
+                "label_gate": label_gate,
+                "declarations": {},
+                "compliance_checks": [{
+                    "rule_id": "LABEL_GATE",
+                    "field_name": "is_label",
+                    "status": "WARNING",
+                    "detected_value": "Not a product label",
+                    "explanation": f"Inspection stopped before validation: {label_gate['reason']}",
+                    "confidence": label_gate["confidence"],
+                }],
+                "summary": {
+                    "passed": 0,
+                    "warnings": 1,
+                    "failed": 0,
+                    "reviews": 0,
+                    "label": "Upload a product label image to continue.",
+                },
+                "image_url": cloudinary_result["url"],
+                "image_public_id": cloudinary_result["public_id"],
+            },
+            "message": "Image rejected by Gemini label check. No compliance checks were run.",
+        }
+
+    quality = get_image_quality(str(dest_path))
+    declarations = await ai.extract_declarations("", image_path=str(dest_path))
+    label_meta = await ai.analyze_label("", image_path=str(dest_path))
 
     engine = ComplianceEngine()
     if hasattr(ai, "evaluate_compliance_ai"):
@@ -145,7 +169,7 @@ async def quick_analyze(
                 "label": summary.label,
             },
             "image_quality": quality,
-            "ocr_text_preview": ocr_text[:500] if ocr_text else "",
+            "ocr_text_preview": "Gemini read the uploaded image directly.",
             "image_url": cloudinary_result["url"],
             "image_public_id": cloudinary_result["public_id"],
         },

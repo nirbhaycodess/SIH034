@@ -21,9 +21,17 @@ class AIProvider(ABC):
         image_path: Optional[str] = None,
     ) -> Dict[str, Dict[str, Any]]:
         """
-        Extract structured declarations from OCR text / image.
+        Extract structured declarations from the uploaded image.
         Returns: {field_name: {"value": str|None, "confidence": float}}
         """
+        ...
+
+    @abstractmethod
+    async def classify_label(
+        self,
+        image_path: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Verify that the uploaded image is a product label before inspection."""
         ...
 
     @abstractmethod

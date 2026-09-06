@@ -1,4 +1,4 @@
-"""Analysis pipeline service — orchestrates OCR, AI, compliance engine."""
+"""Analysis pipeline service — orchestrates Gemini image analysis and compliance."""
 from __future__ import annotations
 
 import logging
@@ -8,8 +8,7 @@ from typing import Any, Dict, Optional
 from bson import ObjectId
 from pymongo.database import Database
 
-from ..ai.ocr import get_ocr_engine
-from ..ai.image_processing import preprocess_for_ocr, get_image_quality
+from ..ai.image_processing import get_image_quality
 from ..compliance.engine import ComplianceEngine
 from ..core.config import settings
 
@@ -36,12 +35,11 @@ async def run_analysis_pipeline(inspection_id: str, db: Database) -> Dict[str, A
     """
     Full AI analysis pipeline:
     1. Get inspection + images
-    2. Preprocess images (OpenCV)
-    3. Run OCR (PaddleOCR)
-    4. Extract declarations (AI provider)
-    5. Run compliance engine (deterministic)
-    6. Save all results to MongoDB
-    7. Return complete result
+    2. Let Gemini verify the image is a product label
+    3. Let Gemini read the image and extract declarations
+    4. Let Gemini evaluate compliance
+    5. Save results to MongoDB
+    6. Return complete result
     """
     insp_oid = ObjectId(inspection_id)
     inspection = db["inspections"].find_one({"_id": insp_oid})
@@ -57,39 +55,36 @@ async def run_analysis_pipeline(inspection_id: str, db: Database) -> Dict[str, A
     try:
         # 1. Get images
         image_paths = inspection.get("images", [])
-        ocr_text = ""
-        ocr_results_docs = []
         quality_data = {}
 
-        # 2. OCR + preprocessing for each image
-        ocr_engine = get_ocr_engine()
         ai_provider = get_ai_provider()
 
         for img_path in image_paths:
             try:
-                processed_path = preprocess_for_ocr(img_path)
-                quality_data = get_image_quality(processed_path)
-                ocr_results = ocr_engine.run(processed_path)
-                page_text = ocr_engine.full_text(ocr_results)
-                ocr_text += "\n" + page_text
-
-                # 3. Save OCR results to MongoDB
-                ocr_doc = {
-                    "inspection_id": insp_oid,
-                    "image_id": img_path,
-                    "results": [r.to_dict() for r in ocr_results],
-                    "created_at": utcnow(),
-                }
-                db["ocr_results"].insert_one(ocr_doc)
-                ocr_results_docs.extend(ocr_results)
+                quality_data = get_image_quality(img_path)
 
             except Exception as exc:
-                logger.error("OCR error for %s: %s", img_path, exc)
+                logger.error("Image quality analysis error for %s: %s", img_path, exc)
 
-        # 4. Extract structured declarations via AI provider (mock or gemini)
         primary_img = image_paths[0] if image_paths else None
-        declarations = await ai_provider.extract_declarations(ocr_text.strip(), image_path=primary_img)
-        label_meta = await ai_provider.analyze_label(ocr_text.strip(), image_path=primary_img)
+        label_gate = await ai_provider.classify_label(image_path=primary_img)
+        if not label_gate["is_label"]:
+            summary = {
+                "inspection_id": inspection_id,
+                "status": "NEEDS_REVIEW",
+                "compliance_score": 0,
+                "ai_confidence": label_gate["confidence"],
+                "label_gate": label_gate,
+                "message": "Inspection stopped: uploaded image is not a product label.",
+            }
+            db["inspections"].update_one(
+                {"_id": insp_oid},
+                {"$set": {"status": "NEEDS_REVIEW", "updated_at": utcnow()}},
+            )
+            return summary
+
+        declarations = await ai_provider.extract_declarations("", image_path=primary_img)
+        label_meta = await ai_provider.analyze_label("", image_path=primary_img)
 
         # 5. Save declarations to MongoDB
         db["declarations"].delete_many({"inspection_id": insp_oid})  # Clear old
@@ -111,28 +106,8 @@ async def run_analysis_pipeline(inspection_id: str, db: Database) -> Dict[str, A
         # 5. Run AI-driven compliance engine
         engine = ComplianceEngine()
 
-        # Strict check: ensure the uploaded image is a product label
-        is_label_flag = declarations.get('is_label', {}).get('value')
-        ai_results = []
-        if not is_label_flag:
-            # Generate a compliance result indicating label not detected
-            ai_results.append({
-                "rule_id": "Label Detection",
-                "field_name": "is_label",
-                "status": "FAIL",
-                "expected_condition": "Uploaded image must be a product label.",
-                "explanation": "The image does not appear to be a product label; it looks like plain text or unrelated content.",
-                "severity_if_fail": "HIGH",
-            })
-            # Skip other AI rule evaluations
-            summary = engine.run_ai_results(ai_results, declarations)
-        else:
-            # Normal flow: evaluate other compliance rules
-            if hasattr(ai_provider, "evaluate_compliance_ai"):
-                ai_results = await ai_provider.evaluate_compliance_ai(declarations)
-                summary = engine.run_ai_results(ai_results, declarations)
-            else:
-                summary = engine.run_ai_results([], declarations)
+        ai_results = await ai_provider.evaluate_compliance_ai(declarations)
+        summary = engine.run_ai_results(ai_results, declarations)
 
         # 7. Save compliance checks to MongoDB
         db["compliance_checks"].delete_many({"inspection_id": insp_oid})

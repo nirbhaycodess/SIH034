@@ -91,9 +91,7 @@ All endpoints are prefixed with `/api/v1`.
 ```
 Image Upload
     ↓
-OpenCV preprocessing (app/ai/image_processing.py)
-    ↓
-PaddleOCR (app/ai/ocr.py)
+Gemini label gate and multimodal OCR
     ↓
 AI Declaration Extraction (app/ai/mock_provider.py or gemini_provider.py)
     ↓
@@ -113,7 +111,7 @@ Results returned and saved to MongoDB where applicable
 - **Pydantic** v2 + **pydantic-settings**
 - **PyMongo** 4.10 (no ORM)
 - **python-jose** (JWT) + **passlib/bcrypt** (passwords)
-- **PaddleOCR** (OCR) + **OpenCV** (preprocessing)
+- **Google Gemini** multimodal OCR and validation
 - **ReportLab** (PDF reports)
 - **MongoDB** (Atlas compatible)
 
