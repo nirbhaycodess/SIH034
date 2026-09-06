@@ -82,7 +82,8 @@ export async function analyzeRealLabelImage(
   const words = (ocrResult.data as any).words || rawText.split(/\s+/).filter(Boolean);
 
   // =========================================================
-  // STRICT PRODUCT LABEL DETECTION (before any other logic)
+  // Accept readable label text when at least one packaging signal is present.
+  // A single field such as MRP, a date, or a product name is enough to continue.
   // =========================================================
   const labelSignals: string[] = [
     'mrp', 'maximum retail price', 'm.r.p', 'net qty', 'net quantity',
@@ -94,7 +95,9 @@ export async function analyzeRealLabelImage(
   ];
   const signalHits = labelSignals.filter((sig) => textLower.includes(sig)).length;
   const wordCount = rawText.split(/\s+/).filter(Boolean).length;
-  const isProductLabel = signalHits >= 3 && wordCount >= 10;
+  const hasDate = /\b(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{1,2}[/-]\d{2,4}|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{2,4})\b/i.test(rawText);
+  const hasReadableText = rawText.trim().length >= 3 && wordCount >= 1;
+  const isProductLabel = hasReadableText && (signalHits >= 1 || hasDate || wordCount >= 2);
 
   if (!isProductLabel) {
     const notLabelInspection: Inspection = {
@@ -110,10 +113,10 @@ export async function analyzeRealLabelImage(
       checks: [
         {
           requirement: '🚫 Product Label Required',
-          detectedValue: `Detected ${wordCount} words, ${signalHits} label signals`,
+          detectedValue: `Detected ${wordCount} readable words and ${signalHits} packaging signals`,
           status: 'FAIL',
           explanation:
-            'The uploaded image does not appear to be a product label. Please upload a clear photo of a packaged commodity label (e.g., a biscuit packet, shampoo bottle, etc.).',
+            'No readable product-label text was detected. Please upload a clearer image containing a product name, MRP, date, quantity, or other package information.',
         },
       ],
       violations: [
@@ -123,7 +126,7 @@ export async function analyzeRealLabelImage(
           title: 'Invalid Upload — Not a Product Label',
           severity: 'High',
           description:
-            'The uploaded image was identified as a non-label image (e.g., a selfie, document, or blank image). The system only analyses packaged commodity labels under the Legal Metrology (Packaged Commodities) Rules, 2011.',
+            'The uploaded image did not contain enough readable text to start a label compliance report.',
         },
       ],
       imageUrl,
