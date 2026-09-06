@@ -58,8 +58,11 @@ async function apiFetch<T>(
   const res = await fetch(url, { ...options, headers });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: { message: res.statusText } }));
-    throw new Error(err?.error?.message ?? `HTTP ${res.status}`);
+    const err = await res.json().catch(() => null);
+    const detail = typeof err?.detail === 'string'
+      ? err.detail
+      : err?.error?.message;
+    throw new Error(detail ?? `${res.status} ${res.statusText}`);
   }
 
   return res.json();
