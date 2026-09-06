@@ -9,6 +9,7 @@ from pymongo.database import Database
 
 from ...core.config import settings
 from ...core.dependencies import get_current_user, get_db
+from ...ai.ocr import extract_text
 from ...services.ai_service import run_analysis_pipeline
 from ...services.cloudinary_service import upload_label_image
 from ...utils.files import secure_save_path, validate_image_file
@@ -57,6 +58,7 @@ async def analyze_inspection(
             {"$push": {
                 "images": cloudinary_result["url"],
                 "image_public_ids": cloudinary_result["public_id"],
+                "local_image_paths": str(dest_path),
             },
              "$set": {"updated_at": datetime.now(timezone.utc)}},
         )
@@ -78,8 +80,7 @@ async def quick_analyze(
 ):
     """
     Quick analysis without creating an inspection record.
-    Uploads image, runs full AI + compliance pipeline, returns results.
-    Does NOT save to database.
+    PaddleOCR text is saved in MongoDB under ``ocr_results`` for this analysis.
     """
     from datetime import datetime, timezone
     from ...ai.image_processing import get_image_quality
@@ -101,6 +102,17 @@ async def quick_analyze(
         raise HTTPException(status_code=502, detail=f"Cloudinary upload failed: {exc}")
 
     ai = get_ai_provider()
+    ocr_result = extract_text(str(dest_path))
+    analysis_id = f"quick_{uuid4().hex}"
+    db["ocr_results"].insert_one({
+        "analysis_id": analysis_id,
+        "engine": ocr_result["engine"],
+        "text": ocr_result["text"],
+        "lines": ocr_result["lines"],
+        "image_url": cloudinary_result["url"],
+        "created_at": datetime.now(timezone.utc),
+    })
+
     label_gate = await ai.classify_label(image_path=str(dest_path))
     if not label_gate["is_label"]:
         return {
@@ -133,8 +145,12 @@ async def quick_analyze(
         }
 
     quality = get_image_quality(str(dest_path))
-    declarations = await ai.extract_declarations("", image_path=str(dest_path))
-    label_meta = await ai.analyze_label("", image_path=str(dest_path))
+    declarations = await ai.extract_declarations(
+        ocr_result["text"], image_path=str(dest_path)
+    )
+    label_meta = await ai.analyze_label(
+        ocr_result["text"], image_path=str(dest_path)
+    )
 
     engine = ComplianceEngine()
     if hasattr(ai, "evaluate_compliance_ai"):
@@ -169,7 +185,8 @@ async def quick_analyze(
                 "label": summary.label,
             },
             "image_quality": quality,
-            "ocr_text_preview": "Gemini read the uploaded image directly.",
+            "ocr_text": ocr_result["text"],
+            "ocr_engine": ocr_result["engine"],
             "image_url": cloudinary_result["url"],
             "image_public_id": cloudinary_result["public_id"],
         },

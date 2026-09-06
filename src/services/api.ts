@@ -138,7 +138,7 @@ export async function analyzePackage(
       throw new Error('Backend analysis is not configured. Set VITE_API_BASE_URL before uploading an image.');
     }
 
-    onProgress?.(15, 'Uploading image for server-side OCR and Gemini analysis…');
+    onProgress?.(15, 'Uploading image for PaddleOCR and Gemini analysis…');
     const form = new FormData();
     form.append('file', file);
     const backendResult = await apiFetch<{
@@ -146,6 +146,8 @@ export async function analyzePackage(
         status: string;
         compliance_score: number;
         declarations: Record<string, { value?: string | null; confidence?: number }>;
+        ocr_text?: string;
+        ocr_engine?: string;
         compliance_checks: Array<{
           field_name: string;
           status: string;
@@ -195,7 +197,7 @@ export async function analyzePackage(
       imageUrl: data.image_url,
     };
     saveNewInspection(inspection);
-    onProgress?.(100, 'Gemini compliance report ready.');
+    onProgress?.(100, `${data.ocr_engine ?? 'PaddleOCR'} text and Gemini compliance report ready.`);
     return inspection;
   }
 

@@ -20,10 +20,10 @@ Return ONLY valid JSON:
 
 EXTRACTION_PROMPT = """
 You are an AI assistant helping analyze Indian packaged commodity labels.
-Your task is to read the uploaded label image and extract mandatory declarations.
+Your task is to extract mandatory declarations from the PaddleOCR text below.
 
 IMPORTANT:
-- Only extract what is clearly present in the text.
+- Only extract what is clearly present in the PaddleOCR text.
 - Do NOT invent or guess values that are not in the text.
 - Return a confidence score between 0.0 and 1.0 for each field.
 - If a field is not found, return {{"value": null, "confidence": 0.0}}.
@@ -41,7 +41,7 @@ Extract the following fields:
 10. importer — Importer name (for imported goods)
 11. is_label — Boolean indicating whether the image is a product label (true) or just normal text/image (false). Return {"value": true, "confidence": 0.99} if it looks like a label, otherwise {"value": false, "confidence": 0.99}.
 
-OCR Text (may be empty because Gemini reads the image directly):
+PaddleOCR Text:
 ---
 {ocr_text}
 ---
@@ -101,10 +101,8 @@ LEGAL METROLOGY RULES (EXCERPTS):
    - The label shall not contain any misleading statement regarding quantity, quality, or nature of the commodity.
 7. Label Detection Requirement:
    - The uploaded image must be a product label. If the `is_label` field is false, the label is considered invalid and the inspection should fail with high severity.
-8. Label Detection Requirement:
-   - The uploaded image must be a product label. If the `is_label` field is false, the label is considered invalid and the inspection should fail with high severity.
 
-EXTRACTED LABEL DATA & AI OCR EVIDENCE:
+EXTRACTED LABEL DATA & PADDLEOCR EVIDENCE:
 {declarations_json}
 
 OUTPUT FORMAT:

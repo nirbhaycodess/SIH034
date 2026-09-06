@@ -9,6 +9,7 @@ from bson import ObjectId
 from pymongo.database import Database
 
 from ..ai.image_processing import get_image_quality
+from ..ai.ocr import extract_text
 from ..compliance.engine import ComplianceEngine
 from ..core.config import settings
 
@@ -35,11 +36,12 @@ async def run_analysis_pipeline(inspection_id: str, db: Database) -> Dict[str, A
     """
     Full AI analysis pipeline:
     1. Get inspection + images
-    2. Let Gemini verify the image is a product label
-    3. Let Gemini read the image and extract declarations
-    4. Let Gemini evaluate compliance
-    5. Save results to MongoDB
-    6. Return complete result
+    2. Run mandatory PaddleOCR and persist its output
+    3. Let Gemini verify the image is a product label
+    4. Let Gemini extract declarations from PaddleOCR text
+    5. Let Gemini evaluate compliance against the configured rules
+    6. Save results to MongoDB
+    7. Return complete result
     """
     insp_oid = ObjectId(inspection_id)
     inspection = db["inspections"].find_one({"_id": insp_oid})
@@ -54,7 +56,9 @@ async def run_analysis_pipeline(inspection_id: str, db: Database) -> Dict[str, A
 
     try:
         # 1. Get images
-        image_paths = inspection.get("images", [])
+        image_paths = inspection.get("local_image_paths") or inspection.get("images", [])
+        if isinstance(image_paths, str):
+            image_paths = [image_paths]
         quality_data = {}
 
         ai_provider = get_ai_provider()
@@ -67,6 +71,21 @@ async def run_analysis_pipeline(inspection_id: str, db: Database) -> Dict[str, A
                 logger.error("Image quality analysis error for %s: %s", img_path, exc)
 
         primary_img = image_paths[0] if image_paths else None
+        if not primary_img:
+            raise ValueError("Inspection has no image for PaddleOCR.")
+        if primary_img.startswith(("http://", "https://")):
+            raise ValueError("PaddleOCR requires a local inspection image.")
+
+        ocr_result = extract_text(primary_img)
+        db["ocr_results"].delete_many({"inspection_id": insp_oid})
+        db["ocr_results"].insert_one({
+            "inspection_id": insp_oid,
+            "engine": ocr_result["engine"],
+            "text": ocr_result["text"],
+            "lines": ocr_result["lines"],
+            "created_at": utcnow(),
+        })
+
         label_gate = await ai_provider.classify_label(image_path=primary_img)
         if not label_gate["is_label"]:
             summary = {
@@ -83,8 +102,12 @@ async def run_analysis_pipeline(inspection_id: str, db: Database) -> Dict[str, A
             )
             return summary
 
-        declarations = await ai_provider.extract_declarations("", image_path=primary_img)
-        label_meta = await ai_provider.analyze_label("", image_path=primary_img)
+        declarations = await ai_provider.extract_declarations(
+            ocr_result["text"], image_path=primary_img
+        )
+        label_meta = await ai_provider.analyze_label(
+            ocr_result["text"], image_path=primary_img
+        )
 
         # 5. Save declarations to MongoDB
         db["declarations"].delete_many({"inspection_id": insp_oid})  # Clear old
@@ -166,6 +189,8 @@ async def run_analysis_pipeline(inspection_id: str, db: Database) -> Dict[str, A
             "compliance_score": summary.score,
             "ai_confidence": label_meta.get("estimated_confidence", 0.85),
             "declarations": {k: v for k, v in declarations.items()},
+            "ocr_text": ocr_result["text"],
+            "ocr_engine": ocr_result["engine"],
             "summary": {
                 "passed": summary.passed,
                 "warnings": summary.warnings,

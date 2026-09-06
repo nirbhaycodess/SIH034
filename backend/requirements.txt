@@ -20,6 +20,8 @@ cloudinary==1.44.1
 # ── Image quality
 opencv-python-headless==4.10.0.84
 numpy==1.26.4
+paddlepaddle==3.2.2
+paddleocr==2.9.1
 
 # ── AI
 google-generativeai==0.8.4
