@@ -7,7 +7,6 @@
 import { mockInspections } from '../data/mockInspections';
 import { mockProducts } from '../data/mockProducts';
 import type { Inspection, Product } from '../types';
-import { analyzeRealLabelImage } from './realLabelAnalyzer';
 
 // ── Backend base URL (set in .env as VITE_API_BASE_URL) ────────────────────
 const API_BASE = import.meta.env.VITE_API_BASE_URL as string | undefined;
@@ -134,29 +133,70 @@ export async function analyzePackage(
   onProgress?: (pct: number, status: string) => void,
   languageMode: 'eng+hin' | 'eng' | 'hin' = 'eng+hin'
 ): Promise<Inspection> {
-  // Real uploaded image — use client-side OCR + compliance pipeline
   if (file) {
-    const result = await analyzeRealLabelImage(file, languageMode, onProgress);
-    saveNewInspection(result.inspection);
-
-    // If backend is configured, also POST to backend for persistence
-    if (API_BASE) {
-      try {
-        const form = new FormData();
-        form.append('file', file);
-        const backendResult = await apiFetch<{
-          data?: { image_url?: string };
-        }>('/analysis/quick-analyze', { method: 'POST', body: form });
-        if (backendResult.data?.image_url) {
-          result.inspection.imageUrl = backendResult.data.image_url;
-          saveNewInspection(result.inspection);
-        }
-      } catch {
-        // Non-fatal — client-side result is authoritative for UX
-      }
+    if (!API_BASE) {
+      throw new Error('Backend analysis is not configured. Set VITE_API_BASE_URL before uploading an image.');
     }
 
-    return result.inspection;
+    onProgress?.(15, 'Uploading image for server-side OCR and Gemini analysis…');
+    const form = new FormData();
+    form.append('file', file);
+    const backendResult = await apiFetch<{
+      data: {
+        status: string;
+        compliance_score: number;
+        declarations: Record<string, { value?: string | null; confidence?: number }>;
+        compliance_checks: Array<{
+          field_name: string;
+          status: string;
+          detected_value?: string | null;
+          explanation: string;
+        }>;
+        summary: { label: string };
+        image_url?: string;
+      };
+    }>('/analysis/quick-analyze', { method: 'POST', body: form });
+
+    onProgress?.(90, 'Building compliance report…');
+    const data = backendResult.data;
+    const declarations = Object.entries(data.declarations)
+      .filter(([, field]) => field.value != null && field.value !== '')
+      .map(([label, field]) => ({
+        label: label.replace(/_/g, ' '),
+        value: String(field.value),
+        confidence: Math.round((field.confidence ?? 0) * 100),
+      }));
+    const checks = data.compliance_checks.map((check) => ({
+      requirement: check.field_name.replace(/_/g, ' '),
+      detectedValue: check.detected_value ?? 'Not detected',
+      status: check.status === 'PASS' ? 'PASS' : check.status === 'FAIL' ? 'FAIL' : 'WARNING',
+      explanation: check.explanation,
+    })) as Inspection['checks'];
+    const inspection: Inspection = {
+      id: `INS-${Date.now()}`,
+      product: declarations.find((item) => item.label === 'product name')?.value ?? file.name,
+      manufacturer: declarations.find((item) => item.label === 'manufacturer')?.value ?? 'Not detected',
+      date: new Date().toLocaleDateString('en-IN'),
+      score: data.compliance_score,
+      status: data.status === 'COMPLIANT' ? 'COMPLIANT' : data.status === 'NON_COMPLIANT' ? 'VIOLATION' : 'NEEDS REVIEW',
+      inspector: 'Gemini AI Analysis',
+      category: 'Packaged Commodity',
+      declarations,
+      checks,
+      violations: checks
+        .filter((check) => check.status === 'FAIL')
+        .map((check, index) => ({
+          id: `V-${Date.now()}-${index}`,
+          rule: check.requirement,
+          title: `${check.requirement} requires attention`,
+          severity: 'High' as const,
+          description: check.explanation,
+        })),
+      imageUrl: data.image_url,
+    };
+    saveNewInspection(inspection);
+    onProgress?.(100, 'Gemini compliance report ready.');
+    return inspection;
   }
 
   // Sample package selected

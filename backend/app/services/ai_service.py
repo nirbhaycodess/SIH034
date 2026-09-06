@@ -17,14 +17,14 @@ logger = logging.getLogger("packsure.analysis")
 
 
 def get_ai_provider():
-    """Return the configured AI provider (mock or gemini)."""
+    """Return the configured AI provider."""
+    if settings.ai_provider.lower() == "gemini":
+        if not settings.gemini_api_key:
+            raise RuntimeError("AI_PROVIDER=gemini requires GEMINI_API_KEY.")
+        from ..ai.gemini_provider import GeminiProvider
+        return GeminiProvider(api_key=settings.gemini_api_key)
+
     from ..ai.mock_provider import MockAIProvider
-    if settings.ai_provider.lower() == "gemini" and settings.gemini_api_key:
-        try:
-            from ..ai.gemini_provider import GeminiProvider
-            return GeminiProvider(api_key=settings.gemini_api_key)
-        except Exception as exc:
-            logger.warning("Gemini init failed, falling back to mock: %s", exc)
     return MockAIProvider()
 
 
