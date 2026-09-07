@@ -16,7 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/common/Button';
 import { ImageUploader } from '../components/inspection/ImageUploader';
 import { ScanPreview } from '../components/inspection/ScanPreview';
-import { analyzePackage } from '../services/api';
+import { analyzeAuditLabel, analyzePackage } from '../services/api';
 import { assessImageQuality, enhanceImageForOcr, type ImageQualityMetrics } from '../services/imageEnhancer';
 import { useToast } from '../context/ToastContext';
 
@@ -132,9 +132,8 @@ export function NewInspection() {
     try {
       if (realFile) {
         setRealProgressMsg('Assessing image quality & running neural OCR…');
-        const res = await analyzePackage(
+        const res = await analyzeAuditLabel(
           realFile,
-          undefined,
           (pct, status) => {
             setRealProgressMsg(status);
             if (pct < 25) setCurrentStep(1);
@@ -143,7 +142,6 @@ export function NewInspection() {
             else if (pct < 90) setCurrentStep(4);
             else setCurrentStep(5);
           },
-          languageMode
         );
 
         // Check if the result is a "not a label" rejection
@@ -175,9 +173,7 @@ export function NewInspection() {
         'Backend Analysis Failed',
         `${message}${message.includes('session')
           ? ''
-          : import.meta.env.DEV
-            ? ' Ensure the backend is running at http://localhost:8000.'
-            : ' Check the deployed backend API configuration.'}`,
+          : ' Check that the audit-label API is running and accessible.'}`,
       );
     }
   }

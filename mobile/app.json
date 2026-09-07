@@ -1,22 +1,22 @@
 {
   "expo": {
-    "name": "PackSure AI",
-    "slug": "packsure-ai",
+    "name": "PackInspect AI",
+    "slug": "packinspect-ai",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "android": {
-      "package": "com.packsure.ai",
+      "package": "com.packinspect.ai",
       "permissions": [
         "CAMERA",
         "READ_MEDIA_IMAGES"
       ]
     },
     "ios": {
-      "bundleIdentifier": "com.packsure.ai",
+      "bundleIdentifier": "com.packinspect.ai",
       "infoPlist": {
-        "NSCameraUsageDescription": "PackSure uses your camera to scan package declarations.",
-        "NSPhotoLibraryUsageDescription": "PackSure uses selected package images for analysis."
+        "NSCameraUsageDescription": "PackInspect uses your camera to scan package declarations.",
+        "NSPhotoLibraryUsageDescription": "PackInspect uses selected package images for analysis."
       }
     },
     "plugins": [

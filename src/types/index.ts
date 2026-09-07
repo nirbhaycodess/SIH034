@@ -36,6 +36,23 @@ export interface Violation {
   description: string;
   rule: string;
 }
+export type AuditStatus = 'PASS' | 'FAIL' | 'Inconclusive';
+export type AuditRuleStatus = 'Compliant' | 'Non-Compliant' | 'Missing';
+export type AuditRuleColor = 'green' | 'red' | 'yellow';
+export interface AuditRuleSummary {
+  rule: string;
+  status: AuditRuleStatus;
+  color: AuditRuleColor;
+  detail: string;
+}
+export interface AuditLabelResponse {
+  status: AuditStatus;
+  confidence: number;
+  reasons: string[];
+  rules_summary: AuditRuleSummary[];
+  extracted_text: string;
+  audit_id: string;
+}
 export interface Inspection {
   id: string;
   product: string;
@@ -49,6 +66,12 @@ export interface Inspection {
   checks: ComplianceCheck[];
   violations: Violation[];
   imageUrl?: string;
+  auditStatus?: AuditStatus;
+  auditConfidence?: number;
+  auditReasons?: string[];
+  rulesSummary?: AuditRuleSummary[];
+  extractedText?: string;
+  auditId?: string;
 }
 export interface Report {
   id: string;

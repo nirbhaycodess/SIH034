@@ -47,7 +47,7 @@ export function LoginScreen({
           <MaterialCommunityIcons name="shield-check" size={28} color="#fff" />
         </View>
         <View style={styles.titleRow}>
-          <Text style={styles.brandTitle}>PACKSURE</Text>
+          <Text style={styles.brandTitle}>PACKINSPECT</Text>
           <View style={styles.aiBadge}>
             <Text style={styles.aiText}>AI</Text>
           </View>
@@ -383,4 +383,3 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
 });
-

@@ -11,12 +11,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/common/Button';
 import { useState } from 'react';
 import { useToast } from '../context/ToastContext';
-import {
-  firebaseErrorMessage,
-  isFirebaseConfigured,
-  signInWithFirebase,
-} from '../services/firebaseAuth';
-import { isBackendConfigured, login as backendLogin } from '../services/api';
 
 export function Login() {
   const nav = useNavigate();
@@ -29,20 +23,11 @@ export function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      if (isBackendConfigured()) {
-        const user = await backendLogin(email, password);
-        success('Authentication Successful', `Welcome back, ${user.name}.`);
-      } else if (isFirebaseConfigured()) {
-        const user = await signInWithFirebase(email, password);
-        success('Authentication Successful', `Welcome back, ${user.displayName || user.email}.`);
-      } else {
-        await new Promise((resolve) => setTimeout(resolve, 600));
-        success('Demo Authentication Successful', 'Firebase is not configured; demo mode is active.');
-      }
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      success('Demo Authentication Successful', 'Demo mode is active.');
       nav('/dashboard');
     } catch (error) {
-      // Firebase provides the authoritative authentication result.
-      showError('Authentication Failed', firebaseErrorMessage(error));
+      showError('Authentication Failed', error instanceof Error ? error.message : 'Unable to sign in.');
     } finally {
       setLoading(false);
     }
@@ -50,18 +35,6 @@ export function Login() {
 
   const handleQuickDemo = () => {
     setLoading(true);
-    if (isBackendConfigured()) {
-      backendLogin('priya.sharma@packsure.gov.in', 'Inspector@123')
-        .then((user) => {
-          success('Demo Session Initialized', `Logged in as ${user.name}.`);
-          nav('/dashboard');
-        })
-        .catch((error) => {
-          showError('Demo Login Failed', error instanceof Error ? error.message : 'Backend login failed.');
-        })
-        .finally(() => setLoading(false));
-      return;
-    }
     setTimeout(() => {
       success('Demo Session Initialized', 'Logged in with authorized Inspector credentials.');
       nav('/dashboard');
@@ -86,7 +59,7 @@ export function Login() {
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="font-extrabold tracking-tight text-white text-lg leading-none">
-                  PACKSURE
+                  PACKINSPECT
                 </span>
                 <span className="rounded bg-brand-600 px-1.5 py-0.2 text-[10px] font-black tracking-wide text-white">
                   AI
@@ -186,7 +159,7 @@ export function Login() {
               <Shield size={22} />
             </div>
             <div>
-              <p className="font-bold text-slate-900 leading-none">PACKSURE AI</p>
+              <p className="font-bold text-slate-900 leading-none">PACKINSPECT AI</p>
               <p className="text-[10px] text-slate-500 font-medium uppercase mt-0.5">
                 Compliance Platform
               </p>
@@ -201,7 +174,7 @@ export function Login() {
               <span className="text-xs text-slate-400">• Single Sign-On</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-1.5">
-              Sign in to PackSure AI
+              Sign in to PackInspect AI
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 mt-1">
               Enter your authorized enforcement officer credentials.

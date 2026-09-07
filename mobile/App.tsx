@@ -78,7 +78,7 @@ export default function App() {
           </View>
           <View>
             <View style={styles.logoRow}>
-              <Text style={styles.brandTitle}>PACKSURE</Text>
+              <Text style={styles.brandTitle}>PACKINSPECT</Text>
               <View style={styles.aiPill}>
                 <Text style={styles.aiText}>AI</Text>
               </View>

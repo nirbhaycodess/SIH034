@@ -124,6 +124,84 @@ export function InspectionResult() {
         </div>
       </div>
 
+      {item.auditStatus && (
+        <section className="card p-5 sm:p-6 space-y-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Audit Report</p>
+              <h2 className="mt-1 text-xl font-extrabold text-slate-900">Legal Metrology Label Assessment</h2>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`rounded-full px-4 py-1.5 text-sm font-black ${
+                  item.auditStatus === 'PASS'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : item.auditStatus === 'FAIL'
+                      ? 'bg-rose-100 text-rose-800'
+                      : 'bg-amber-100 text-amber-800'
+                }`}
+              >
+                {item.auditStatus}
+              </span>
+              <span className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold text-slate-700">
+                Confidence: {item.auditConfidence ?? 0}%
+              </span>
+            </div>
+          </div>
+
+          {item.auditReasons && item.auditReasons.length > 0 && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-950">
+              <div className="flex items-center gap-2 font-bold">
+                <AlertTriangle size={18} className="text-rose-600" />
+                Requirements requiring attention
+              </div>
+              <ul className="mt-2 list-disc space-y-1 pl-6 text-sm">
+                {item.auditReasons.map((reason) => <li key={reason}>{reason}</li>)}
+              </ul>
+            </div>
+          )}
+
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Rule-by-rule breakdown</h3>
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              {(item.rulesSummary ?? []).map((rule) => {
+                const styles = {
+                  green: 'border-emerald-200 bg-emerald-50/60 text-emerald-900',
+                  red: 'border-rose-200 bg-rose-50/60 text-rose-900',
+                  yellow: 'border-amber-200 bg-amber-50/60 text-amber-900',
+                }[rule.color];
+                return (
+                  <div key={rule.rule} className={`rounded-xl border p-4 ${styles}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <h4 className="font-bold">{rule.rule}</h4>
+                      <span className="shrink-0 rounded-full bg-white/80 px-2 py-1 text-[10px] font-black uppercase">
+                        {rule.status}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm opacity-90">{rule.detail}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <details className="rounded-xl border border-slate-200 bg-slate-50">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-bold text-slate-800">
+              View extracted OCR text
+            </summary>
+            <pre className="max-h-64 overflow-auto whitespace-pre-wrap border-t border-slate-200 px-4 py-3 text-xs leading-relaxed text-slate-600">
+              {item.extractedText || 'No OCR text returned.'}
+            </pre>
+          </details>
+
+          {item.auditId && (
+            <p className="text-right font-mono text-[11px] text-slate-400">
+              Database ID: {item.auditId}
+            </p>
+          )}
+        </section>
+      )}
+
       {/* Hero 3-Card Summary: Circular Gauge + Executive Quick Stats */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Compliance Score with Large Circular Progress Indicator */}

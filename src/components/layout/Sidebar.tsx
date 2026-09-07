@@ -161,7 +161,7 @@ function Brand() {
       <div>
         <div className="flex items-center gap-1.5">
           <span className="font-extrabold tracking-tight text-slate-900 text-base leading-none">
-            PACKSURE
+            PACKINSPECT
           </span>
           <span className="rounded bg-brand-600 px-1 py-0.2 text-[10px] font-black tracking-wide text-white">
             AI

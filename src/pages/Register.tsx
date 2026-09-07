@@ -78,7 +78,7 @@ export function Register() {
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="font-extrabold tracking-tight text-white text-lg leading-none">
-                  PACKSURE
+                  PACKINSPECT
                 </span>
                 <span className="rounded bg-brand-600 px-1.5 py-0.2 text-[10px] font-black tracking-wide text-white">
                   AI
@@ -153,7 +153,7 @@ export function Register() {
               <Shield size={22} />
             </div>
             <div>
-              <p className="font-bold text-slate-900 leading-none">PACKSURE AI</p>
+              <p className="font-bold text-slate-900 leading-none">PACKINSPECT AI</p>
               <p className="text-[10px] text-slate-500 font-medium uppercase mt-0.5">
                 Compliance Platform
               </p>
@@ -171,7 +171,7 @@ export function Register() {
               Register Officer Profile
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Enroll your government inspection credentials to access the PackSure AI grid.
+              Enroll your government inspection credentials to access the PackInspect AI grid.
             </p>
           </div>
 
@@ -304,4 +304,3 @@ export function Register() {
     </main>
   );
 }
-
