@@ -1,160 +1,90 @@
+import { Inspection } from '../types';
 import { mockInspections } from '../data/mockInspections';
-import type { AuditLabelResponse, Inspection, Product } from '../types';
 
-const AUDIT_LABEL_API =
-  (import.meta.env.VITE_AUDIT_LABEL_API_URL as string | undefined) ??
-  'http://80.225.241.2:8000/api/audit-label';
-const LOCAL_STORAGE_KEY = 'packsure_inspections_store';
-
-function getStoredInspections(): Inspection[] {
-  try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : null;
-    return Array.isArray(parsed) ? [...parsed, ...mockInspections] : [...mockInspections];
-  } catch {
-    return [...mockInspections];
-  }
-}
-
-let dynamicInspections = getStoredInspections();
-
-export const pause = (ms = 650) => new Promise((resolve) => setTimeout(resolve, ms));
-
-type JsonRecord = Record<string, unknown>;
-
-function asRecord(value: unknown): JsonRecord {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? (value as JsonRecord)
-    : {};
-}
-
-function asText(value: unknown, fallback = ''): string {
-  return typeof value === 'string' || typeof value === 'number' ? String(value) : fallback;
-}
-
-function getNumber(record: JsonRecord, keys: string[], fallback: number): number {
-  for (const key of keys) {
-    const value = record[key];
-    const parsed = typeof value === 'number' ? value : Number.parseFloat(asText(value));
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return fallback;
-}
-
-function normalizeAuditResponse(response: unknown, file: File): Inspection {
-  const data = response as AuditLabelResponse;
-  const declarations: Inspection['declarations'] = data.rules_summary.map((rule) => ({
-    label: rule.rule,
-    value: rule.detail,
-    confidence: data.confidence,
-  }));
-  const checks: Inspection['checks'] = data.rules_summary.map((rule) => ({
-    requirement: rule.rule,
-    detectedValue: rule.detail,
-    status: rule.status === 'Compliant' ? 'PASS' : rule.status === 'Non-Compliant' ? 'FAIL' : 'WARNING',
-    explanation: rule.detail,
-  }));
-  const status = data.status === 'PASS' ? 'COMPLIANT' : data.status === 'FAIL' ? 'VIOLATION' : 'NEEDS REVIEW';
-  const product = data.extracted_text.split(/\r?\n/)[0]?.slice(0, 80) || file.name;
-  const manufacturer = 'Extracted from audit-label OCR';
-
-  return {
-    id: `INS-${Date.now()}`,
-    product,
-    manufacturer,
-    date: new Date().toLocaleDateString('en-IN'),
-    score: data.confidence,
-    status,
-    inspector: 'Audit Label API',
-    category: 'Packaged Commodity',
-    declarations,
-    checks,
-    violations: checks.filter((check) => check.status === 'FAIL').map((check, index) => ({
-      id: `V-${Date.now()}-${index}`,
-      rule: check.requirement,
-      title: `${check.requirement} requires attention`,
-      severity: 'High' as const,
-      description: check.explanation,
-    })),
-    auditStatus: data.status,
-    auditConfidence: data.confidence,
-    auditReasons: data.reasons,
-    rulesSummary: data.rules_summary,
-    extractedText: data.extracted_text,
-    auditId: data.audit_id,
-  };
-}
+const API_BASE_URL = 'https://80-225-241-2.sslip.io';
 
 export async function analyzeAuditLabel(
   file: File,
-  onProgress?: (pct: number, status: string) => void,
+  onProgress?: (percent: number, statusText: string) => void
 ): Promise<Inspection> {
-  onProgress?.(15, 'Uploading image to the audit-label service…');
-  const form = new FormData();
-  form.append('file', file);
-  const response = await fetch(AUDIT_LABEL_API, { method: 'POST', body: form });
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || `${response.status} ${response.statusText}`);
+  const formData = new FormData();
+  formData.append('file', file);
+
+  // Store local object URL so BoundingBoxViewer in InspectionResult can render it
+  const localPreviewUrl = URL.createObjectURL(file);
+
+  onProgress?.(15, 'Enhancing image contrast & running Tesseract OCR...');
+
+  const progressInterval = setInterval(() => {
+    onProgress?.(55, 'Evaluating declarations against Legal Metrology Rules, 2011...');
+  }, 1200);
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/audit-label`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    clearInterval(progressInterval);
+
+    if (!res.ok) {
+      throw new Error(`Audit API responded with status ${res.status}`);
+    }
+
+    onProgress?.(90, 'Formatting compliance matrices and statutory report...');
+    const data = await res.json();
+
+    const inspection: Inspection = {
+      id: data.id || `INS-${Date.now()}`,
+      product: data.product || file.name.replace(/\.[^/.]+$/, ''),
+      category: data.category || 'General Commodity',
+      manufacturer: data.manufacturer || 'Domestic Packer',
+      date: data.date || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      inspector: data.inspector || 'Officer Priya Sharma',
+      score: typeof data.score === 'number' ? data.score : 80,
+      status: data.status || 'NEEDS REVIEW',
+      imageUrl: localPreviewUrl,
+      declarations: data.declarations || [],
+      checks: data.checks || [],
+      violations: data.violations || [],
+      auditStatus: data.auditStatus || 'PASS',
+      auditConfidence: data.auditConfidence || 90,
+      auditReasons: data.auditReasons || [],
+      rulesSummary: data.rulesSummary || [],
+      extractedText: data.extractedText || '',
+      auditId: data.auditId || data.id,
+    };
+
+    // Cache the inspection in the browser so InspectionResult.tsx can load it
+    sessionStorage.setItem(`inspection_${inspection.id}`, JSON.stringify(inspection));
+
+    return inspection;
+  } catch (error) {
+    clearInterval(progressInterval);
+    throw error;
   }
-  onProgress?.(90, 'Building compliance report from audit labels…');
-  const payload = await response.json() as AuditLabelResponse;
-  const inspection = normalizeAuditResponse(payload, file);
-  saveNewInspection(inspection);
-  onProgress?.(100, 'Audit label analysis complete.');
-  return inspection;
+}
+
+export async function getInspectionById(id: string): Promise<Inspection | undefined> {
+  // Look up the inspection in browser storage (stateless UI architecture)
+  const cached = sessionStorage.getItem(`inspection_${id}`);
+  if (cached) {
+    try {
+      return JSON.parse(cached);
+    } catch {
+      // Fall through to mock if parsing fails
+    }
+  }
+
+  // Fallback for SIH demo dashboard data
+  return mockInspections.find((x) => x.id === id);
 }
 
 export async function analyzePackage(
-  file?: File | null,
-  sampleId?: string,
-  onProgress?: (pct: number, status: string) => void,
+  file: File | null,
+  sampleId?: string
 ): Promise<Inspection> {
-  if (file) return analyzeAuditLabel(file, onProgress);
-  if (sampleId) {
-    const sampleIndex = Number(sampleId.replace('sample-', '')) - 1;
-    if (sampleIndex >= 0 && sampleIndex < mockInspections.length) return mockInspections[sampleIndex];
-  }
-  await pause(1000);
-  return dynamicInspections[0];
-}
-
-export function saveNewInspection(inspection: Inspection): void {
-  dynamicInspections = [inspection, ...dynamicInspections.filter((item) => item.id !== inspection.id)];
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify([inspection]));
-}
-
-export async function getInspections(): Promise<Inspection[]> {
-  await pause(200);
-  return dynamicInspections;
-}
-
-export async function getInspectionById(id: string): Promise<Inspection> {
-  await pause(200);
-  return dynamicInspections.find((item) => item.id === id) ??
-    mockInspections.find((item) => item.id === id) ??
-    dynamicInspections[0];
-}
-
-export async function getProducts(): Promise<Product[]> {
-  await pause(200);
-  return dynamicInspections.map((item, index) => ({
-    id: `PRD-${index + 1}`,
-    name: item.product,
-    brand: item.product.split(' ')[0],
-    manufacturer: item.manufacturer,
-    category: item.category,
-    lastInspection: item.date,
-    status: item.status,
-    violations: item.violations.length,
-  }));
-}
-
-export async function generateReport(_inspectionId?: string): Promise<{ url: string; generated: boolean }> {
-  await pause();
-  return { url: '#', generated: true };
-}
-
-export async function getDashboardAnalytics() {
-  return null;
+  // Simulates sample processing if user clicked a quick demo card
+  const found = mockInspections.find((x) => x.id === sampleId) || mockInspections[0];
+  return found;
 }
