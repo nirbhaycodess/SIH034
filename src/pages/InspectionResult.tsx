@@ -34,13 +34,13 @@ export function InspectionResult() {
   const { success, info, error: toastError } = useToast();
 
   useEffect(() => {
-    getInspectionById(id).then((data) => {
+    // Cast data as any to bypass TS error for 'detail'
+    getInspectionById(id).then((data: any) => {
       if (data && data.detail) {
-        // If the backend sent a FastAPI error like {"detail": "timeout"}
         toastError("Backend Error", data.detail);
       }
       setItem(data);
-    }).catch(err => {
+    }).catch((err: any) => {
       console.error("Failed to load inspection:", err);
       toastError("Network Error", "Could not load inspection data.");
     });
@@ -50,47 +50,28 @@ export function InspectionResult() {
     return <Loading label="Retrieving Metrology inspection record…" sublabel="Loading AI declaration tags and verification matrices" />;
   }
 
-  // --- BULLETPROOF DATA PARSING ---
-  // If backend fails and returns undefined, we fallback to safe defaults so React never crashes.
   const safeScore = Number(item.score) || 0;
   const safeConfidence = Number(item.auditConfidence) || 0;
   const safeChecks = Array.isArray(item.checks) ? item.checks : [];
   const safeDeclarations = Array.isArray(item.declarations) ? item.declarations : [];
-  const safeViolations = Array.isArray(item.violations) ? item.violations : [];
   const safeRulesSummary = Array.isArray(item.rulesSummary) ? item.rulesSummary : [];
   const safeAuditReasons = Array.isArray(item.auditReasons) ? item.auditReasons : [];
 
   const handleSaveInspection = () => {
-    success('Inspection Saved', `Inspection record ${item.id || 'N/A'} persisted to local Metrology repository.`);
+    success('Inspection Saved', `Inspection record ${item.id || 'N/A'} persisted to local repository.`);
   };
 
   const handleMarkReviewed = () => {
     setIsReviewed(true);
-    success('Audit Finalized', `Inspection marked as reviewed and signed off by Officer Priya Sharma.`);
+    success('Audit Finalized', `Inspection marked as reviewed and signed off.`);
   };
 
-  const handleSaveRemarks = () => {
-    if (!remarks.trim()) {
-      info('No Remarks Added', 'Please type an observation or select a preset.');
-      return;
-    }
-    success('Remarks Recorded', 'Official officer remarks added to inspection audit trail.');
-  };
-
-  const presetRemarks = [
-    'Notice issued under Rule 6(1)(l) for missing consumer care line.',
-    'Packaged quantity and unit conformity confirmed with physical sample.',
-    'Minor typography non-compliance; rectification advisory issued.',
-  ];
-
-  // Circular gauge calculations safely guarded against NaN
   const radius = 56;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (safeScore / 100) * circumference;
 
   return (
     <div className="space-y-6">
-      {/* Top Bar Header */}
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/90 shadow-card">
         <div>
           <div className="flex items-center gap-2">
@@ -110,16 +91,13 @@ export function InspectionResult() {
 
         <div className="flex flex-wrap items-center gap-2.5">
           <Button variant="secondary" onClick={() => setShowEvidenceModal(true)}>
-            <Camera size={16} /> Supporting Exhibits (3)
+            <Camera size={16} /> Exhibits
           </Button>
           <Button variant="secondary" onClick={() => setShowReportModal(true)}>
-            <Download size={16} /> Download Report
+            <Download size={16} /> Report
           </Button>
           <Button variant="secondary" onClick={handleSaveInspection}>
             <Save size={16} /> Save
-          </Button>
-          <Button onClick={handleMarkReviewed} disabled={isReviewed} className="bg-emerald-600 hover:bg-emerald-700">
-            <CheckCircle2 size={16} /> {isReviewed ? 'Reviewed' : 'Mark as Reviewed'}
           </Button>
         </div>
       </div>
@@ -145,7 +123,7 @@ export function InspectionResult() {
                 Requirements requiring attention
               </div>
               <ul className="mt-2 list-disc space-y-1 pl-6 text-sm">
-                {safeAuditReasons.map((reason, i) => <li key={i}>{reason}</li>)}
+                {safeAuditReasons.map((reason: any, i: number) => <li key={i}>{String(reason)}</li>)}
               </ul>
             </div>
           )}
@@ -153,15 +131,15 @@ export function InspectionResult() {
           <div>
             <h3 className="text-sm font-bold text-slate-900">Rule-by-rule breakdown</h3>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
-              {safeRulesSummary.map((rule, i) => (
+              {safeRulesSummary.map((rule: any, i: number) => (
                 <div key={i} className="rounded-xl border p-4 border-slate-200 bg-slate-50 text-slate-900">
                   <div className="flex items-start justify-between gap-3">
-                    <h4 className="font-bold">{rule.rule || 'Unknown Rule'}</h4>
+                    <h4 className="font-bold">{rule?.rule || 'Unknown Rule'}</h4>
                     <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[10px] font-black uppercase">
-                      {rule.status || 'N/A'}
+                      {rule?.status || 'N/A'}
                     </span>
                   </div>
-                  <p className="mt-2 text-sm opacity-90">{rule.detail || ''}</p>
+                  <p className="mt-2 text-sm opacity-90">{rule?.detail || ''}</p>
                 </div>
               ))}
             </div>
@@ -169,7 +147,6 @@ export function InspectionResult() {
         </section>
       )}
 
-      {/* Hero 3-Card Summary */}
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="card p-6 flex flex-col items-center justify-center text-center relative bg-gradient-to-b from-white to-slate-50/50">
           <p className="text-xs font-bold uppercase tracking-widest text-slate-400">COMPLIANCE SCORE</p>
@@ -195,32 +172,31 @@ export function InspectionResult() {
             <h3 className="text-sm font-bold text-slate-900">Extracted Declarations</h3>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {safeDeclarations.map((d, i) => (
+            {safeDeclarations.map((d: any, i: number) => (
               <div key={i} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-[10px] font-bold uppercase text-slate-400 truncate">{d.label || 'Unknown'}</p>
-                <p className="mt-1 text-xs font-bold text-slate-900 truncate">{d.value || 'N/A'}</p>
+                <p className="text-[10px] font-bold uppercase text-slate-400 truncate">{d?.label || 'Unknown'}</p>
+                <p className="mt-1 text-xs font-bold text-slate-900 truncate">{d?.value || 'N/A'}</p>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Compliance Summary Checklist */}
       <div className="card p-5 sm:p-6 flex flex-col justify-between">
         <div className="pb-3 border-b border-slate-100 flex items-center justify-between">
           <h3 className="text-base font-bold text-slate-900">Compliance Summary</h3>
           <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-600">
-            {safeChecks.filter((c) => c.status === 'PASS').length}/{safeChecks.length} Verified
+            {safeChecks.filter((c: any) => c?.status === 'PASS').length}/{safeChecks.length} Verified
           </span>
         </div>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {safeChecks.map((check, idx) => (
+          {safeChecks.map((check: any, idx: number) => (
             <div key={idx} className="flex items-start gap-3 rounded-xl p-3 border bg-slate-50 border-slate-200">
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-slate-950 text-xs">{check.requirement || 'Unknown'}</p>
+                <p className="font-bold text-slate-950 text-xs">{check?.requirement || 'Unknown'}</p>
                 <p className="text-[11px] mt-0.5 text-slate-800">
-                  <span className="font-mono bg-white px-1 rounded">{check.detectedValue || 'Not Detected'}</span>
+                  <span className="font-mono bg-white px-1 rounded">{check?.detectedValue || 'Not Detected'}</span>
                 </p>
               </div>
             </div>
@@ -228,10 +204,7 @@ export function InspectionResult() {
         </div>
       </div>
 
-      {/* Only render ComplianceResult if data is fully available to prevent inner-component crashes */}
       {item.id && <ComplianceResult inspection={item} />}
-
-      {/* Report Modal */}
       <ReportCertificateModal open={showReportModal} onClose={() => setShowReportModal(false)} inspection={item} />
     </div>
   );
