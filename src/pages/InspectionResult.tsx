@@ -6,9 +6,11 @@ import {
   ShieldCheck,
   AlertTriangle,
   XCircle,
+  Clock,
+  Sparkles,
   FileCheck2,
   Check,
-  Camera,
+  Building,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
@@ -17,12 +19,14 @@ import { Button } from '../components/common/Button';
 import { Loading } from '../components/common/Loading';
 import { ComplianceResult } from '../components/inspection/ComplianceResult';
 import { ViolationCard } from '../components/inspection/ViolationCard';
+import { BoundingBoxViewer } from '../components/inspection/BoundingBoxViewer';
 import { FontSizeAnalyzer } from '../components/inspection/FontSizeAnalyzer';
 import { EvidenceAttachmentModal } from '../components/inspection/EvidenceAttachmentModal';
 import { ReportCertificateModal } from '../components/reports/ReportCertificateModal';
 import type { Inspection } from '../types';
 import { getInspectionById } from '../services/api';
 import { useToast } from '../context/ToastContext';
+import { Camera } from 'lucide-react';
 
 export function InspectionResult() {
   const { id = '' } = useParams();
@@ -250,7 +254,7 @@ export function InspectionResult() {
 
           <div className="mt-4 pt-3 border-t border-slate-100 w-full flex items-center justify-between text-xs text-slate-500">
             <span>AI Confidence: <b className="text-slate-800">94.8%</b></span>
-            <span>Rules Evaluated: <b className="text-slate-800">{item.checks.length}</b></span>
+            <span>Rules Evaluated: <b className="text-slate-800">7</b></span>
           </div>
         </div>
 
@@ -296,70 +300,78 @@ export function InspectionResult() {
         </div>
       </div>
 
-      {/* Compliance Summary Checklist (Full Width Layout) */}
-      <div className="card p-5 sm:p-6 flex flex-col justify-between">
-        <div>
-          <div className="pb-3 border-b border-slate-100 flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-900">Compliance Summary</h3>
-              <p className="text-xs text-slate-500">Rule 6 Mandatory Checklist</p>
-            </div>
-            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-600">
-              {item.checks.filter((c) => c.status === 'PASS').length}/{item.checks.length} Verified
-            </span>
-          </div>
-
-          <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {item.checks.map((check, idx) => {
-              let bgClass = 'bg-slate-50/70 border-slate-200';
-              let textClass = 'text-slate-950';
-              let subTextClass = 'text-slate-800';
-              let Icon = CheckCircle2;
-              let iconClass = 'text-slate-600';
-
-              if (check.status === 'PASS') {
-                bgClass = 'bg-emerald-50/70 border-emerald-100';
-                textClass = 'text-emerald-950';
-                subTextClass = 'text-emerald-800';
-                Icon = CheckCircle2;
-                iconClass = 'text-emerald-600';
-              } else if (check.status === 'WARNING' || check.status === 'REVIEW') {
-                bgClass = 'bg-amber-50/70 border-amber-200';
-                textClass = 'text-amber-950';
-                subTextClass = 'text-amber-800';
-                Icon = AlertTriangle;
-                iconClass = 'text-amber-600';
-              } else if (check.status === 'FAIL') {
-                bgClass = 'bg-rose-50/70 border-rose-200';
-                textClass = 'text-rose-950';
-                subTextClass = 'text-rose-800';
-                Icon = XCircle;
-                iconClass = 'text-rose-600';
-              }
-
-              return (
-                <div key={idx} className={`flex items-start gap-3 rounded-xl p-3 border text-xs ${bgClass}`}>
-                  <Icon size={18} className={`shrink-0 mt-0.5 ${iconClass}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className={`font-bold ${textClass}`}>{check.requirement}</p>
-                    <p className={`text-[11px] mt-0.5 ${subTextClass}`}>
-                      <span className="font-mono bg-white/50 px-1 rounded">{check.detectedValue || 'Not Detected'}</span>
-                      <span className="block mt-1 opacity-90">{check.explanation}</span>
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* Two-Column Showcase Layout: LEFT (Bounding Boxes) & RIGHT (Compliance Checklist) */}
+      <div className="grid gap-6 lg:grid-cols-12 items-start">
+        {/* LEFT: Package Image with Highlighted Detection Regions */}
+        <div className="lg:col-span-7">
+          <BoundingBoxViewer productName={item.product} imageUrl={item.imageUrl} />
         </div>
 
-        <div className="mt-5 pt-3 border-t border-slate-100 text-center">
-          <button
-            onClick={() => setShowReportModal(true)}
-            className="text-xs font-bold text-brand-600 hover:text-brand-800 transition"
-          >
-            Generate printable compliance statement →
-          </button>
+        {/* RIGHT: Compliance Summary Checklist */}
+        <div className="lg:col-span-5 card p-5 sm:p-6 flex flex-col justify-between min-h-[460px]">
+          <div>
+            <div className="pb-3 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Compliance Summary</h3>
+                <p className="text-xs text-slate-500">Rule 6 Mandatory Checklist</p>
+              </div>
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-600">
+                {item.checks.filter((c) => c.status === 'PASS').length}/{item.checks.length} Verified
+              </span>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {item.checks.map((check, idx) => {
+                let bgClass = 'bg-slate-50/70 border-slate-200';
+                let textClass = 'text-slate-950';
+                let subTextClass = 'text-slate-800';
+                let Icon = CheckCircle2;
+                let iconClass = 'text-slate-600';
+
+                if (check.status === 'PASS') {
+                  bgClass = 'bg-emerald-50/70 border-emerald-100';
+                  textClass = 'text-emerald-950';
+                  subTextClass = 'text-emerald-800';
+                  Icon = CheckCircle2;
+                  iconClass = 'text-emerald-600';
+                } else if (check.status === 'WARNING' || check.status === 'REVIEW') {
+                  bgClass = 'bg-amber-50/70 border-amber-200';
+                  textClass = 'text-amber-950';
+                  subTextClass = 'text-amber-800';
+                  Icon = AlertTriangle;
+                  iconClass = 'text-amber-600';
+                } else if (check.status === 'FAIL') {
+                  bgClass = 'bg-rose-50/70 border-rose-200';
+                  textClass = 'text-rose-950';
+                  subTextClass = 'text-rose-800';
+                  Icon = XCircle;
+                  iconClass = 'text-rose-600';
+                }
+
+                return (
+                  <div key={idx} className={`flex items-start gap-3 rounded-xl p-3 border text-xs ${bgClass}`}>
+                    <Icon size={18} className={`shrink-0 mt-0.5 ${iconClass}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className={`font-bold ${textClass}`}>{check.requirement}</p>
+                      <p className={`text-[11px] mt-0.5 ${subTextClass}`}>
+                        <span className="font-mono bg-white/50 px-1 rounded">{check.detectedValue || 'Not Detected'}</span>
+                        <span className="block mt-1 opacity-90">{check.explanation}</span>
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-5 pt-3 border-t border-slate-100 text-center">
+            <button
+              onClick={() => setShowReportModal(true)}
+              className="text-xs font-bold text-brand-600 hover:text-brand-800 transition"
+            >
+              Generate printable compliance statement →
+            </button>
+          </div>
         </div>
       </div>
 
