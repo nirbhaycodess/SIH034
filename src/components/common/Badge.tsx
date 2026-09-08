@@ -1,51 +1,24 @@
-import type { Status, CheckStatus } from '../../types';
+import { CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 
-export function Badge({
-  status,
-  size = 'md',
-  showDot = true,
-}: {
-  status: Status | CheckStatus | string;
-  size?: 'sm' | 'md';
-  showDot?: boolean;
-}) {
-  const norm = status.toUpperCase();
+export function Badge({ status, size = 'sm' }: any) {
+  const safeStatus = (status || 'REVIEW').toUpperCase();
+  
+  // Safe mapping with a guaranteed fallback object
+  const config = {
+    COMPLIANT: { border: 'border-emerald-200', bg: 'bg-emerald-50', text: 'text-emerald-700', icon: CheckCircle2 },
+    VIOLATION: { border: 'border-rose-200', bg: 'bg-rose-50', text: 'text-rose-700', icon: XCircle },
+    'NEEDS REVIEW': { border: 'border-amber-200', bg: 'bg-amber-50', text: 'text-amber-700', icon: AlertTriangle },
+    REVIEW: { border: 'border-amber-200', bg: 'bg-amber-50', text: 'text-amber-700', icon: AlertTriangle }
+  }[safeStatus] || { border: 'border-slate-200', bg: 'bg-slate-50', text: 'text-slate-700', icon: AlertTriangle };
 
-  const isCompliant = norm === 'COMPLIANT' || norm === 'PASS';
-  const isViolation = norm === 'VIOLATION' || norm === 'FAIL';
-  const isWarning = norm === 'NEEDS REVIEW' || norm === 'WARNING' || norm === 'REVIEW';
-
-  const config = isCompliant
-    ? {
-        bg: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 border-emerald-200/60',
-        dot: 'bg-emerald-500',
-      }
-    : isViolation
-    ? {
-        bg: 'bg-rose-50 text-rose-700 ring-rose-600/20 border-rose-200/60',
-        dot: 'bg-rose-500',
-      }
-    : isWarning
-    ? {
-        bg: 'bg-amber-50 text-amber-700 ring-amber-600/20 border-amber-200/60',
-        dot: 'bg-amber-500',
-      }
-    : {
-        bg: 'bg-slate-100 text-slate-700 ring-slate-500/20 border-slate-200',
-        dot: 'bg-slate-400',
-      };
-
-  const sizeClasses =
-    size === 'sm'
-      ? 'px-2 py-0.5 text-[11px] gap-1.5'
-      : 'px-2.5 py-1 text-xs gap-1.5';
+  const Icon = config.icon;
+  
+  const padding = size === 'md' ? 'px-4 py-1.5 text-sm' : 'px-3 py-1 text-xs';
 
   return (
-    <span
-      className={`inline-flex items-center font-semibold rounded-full border ring-1 ring-inset ${sizeClasses} ${config.bg}`}
-    >
-      {showDot && <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${config.dot}`} />}
-      {status}
+    <span className={`inline-flex items-center gap-1.5 font-bold rounded-full border ${config.border} ${config.bg} ${config.text} ${padding}`}>
+      <Icon size={size === 'md' ? 16 : 14} />
+      {safeStatus}
     </span>
   );
 }
